@@ -60,6 +60,8 @@ target_link_libraries(work_study_assistant
     OpenSSL::Crypto
     SQLite::SQLite3
     ${PLATFORM_LIBS}
+    paddle_inference
+    opencv_inference
 )
 
 # Install targets

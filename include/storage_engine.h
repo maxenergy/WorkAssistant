@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common_types.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -10,18 +11,6 @@
 #include <functional>
 
 namespace work_assistant {
-
-// Forward declarations to avoid circular dependencies
-struct CaptureFrame;
-struct OCRDocument;
-struct ContentAnalysis;
-struct WindowInfo;
-struct WindowEvent;
-
-// AI-related forward declarations
-enum class ContentType;
-enum class WorkCategory;
-enum class ActivityPriority;
 
 // Additional forward declarations
 
@@ -95,10 +84,10 @@ struct ContentAnalysisRecord {
     std::vector<std::string> keywords;
     float ocr_confidence = 0.0f;
     
-    // AI analysis (stored as integers to avoid enum dependencies)
-    int content_type = 0; // ContentType enum value
-    int work_category = 0; // WorkCategory enum value
-    int priority = 2; // ActivityPriority enum value (MEDIUM = 2)
+    // AI analysis
+    ContentType content_type = ContentType::UNKNOWN;
+    WorkCategory work_category = WorkCategory::UNKNOWN;
+    ActivityPriority priority = ActivityPriority::MEDIUM;
     bool is_productive = false;
     bool is_focused_work = false;
     float ai_confidence = 0.0f;
@@ -172,8 +161,8 @@ struct QueryParams {
     // Filters
     std::vector<RecordType> record_types;
     std::vector<std::string> applications;
-    std::vector<int> content_types; // ContentType enum values as integers
-    std::vector<int> work_categories; // WorkCategory enum values as integers
+    std::vector<ContentType> content_types;
+    std::vector<WorkCategory> work_categories;
     std::string search_text;
     
     // Result options

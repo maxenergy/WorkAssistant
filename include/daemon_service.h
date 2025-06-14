@@ -96,9 +96,11 @@ public:
     bool IsInstalled() const override;
     bool IsRunning() const override;
     
+#ifdef _WIN32
     // Windows service-specific methods
     static void WINAPI ServiceMain(DWORD argc, LPWSTR* argv);
     static void WINAPI ServiceControlHandler(DWORD control);
+#endif
     
 private:
     ServiceConfig m_config;

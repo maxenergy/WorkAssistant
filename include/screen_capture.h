@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common_types.h"
 #include <memory>
 #include <vector>
 #include <chrono>
@@ -7,27 +8,6 @@
 #include <functional>
 
 namespace work_assistant {
-
-struct CaptureFrame {
-    std::vector<uint8_t> data;
-    int width;
-    int height;
-    int bytes_per_pixel;
-    std::chrono::system_clock::time_point timestamp;
-    
-    CaptureFrame() : width(0), height(0), bytes_per_pixel(0) {}
-    
-    // Calculate data size
-    size_t GetDataSize() const {
-        return width * height * bytes_per_pixel;
-    }
-    
-    // Check if frame is valid
-    bool IsValid() const {
-        return width > 0 && height > 0 && bytes_per_pixel > 0 && 
-               data.size() == GetDataSize();
-    }
-};
 
 // Monitor information
 struct MonitorInfo {
@@ -57,7 +37,7 @@ public:
     virtual bool CaptureMonitor(int monitorId, CaptureFrame& frame) = 0;
     
     // Capture window by handle
-    virtual bool CaptureWindow(uint64_t windowHandle, CaptureFrame& frame) = 0;
+    virtual bool CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame) = 0;
     
     // Capture region of screen
     virtual bool CaptureRegion(int x, int y, int width, int height, CaptureFrame& frame) = 0;
@@ -92,7 +72,7 @@ public:
 
     // Manual capture
     bool CaptureNow(CaptureFrame& frame);
-    bool CaptureWindow(uint64_t windowHandle, CaptureFrame& frame);
+    bool CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame);
 
     // Change detection settings
     void SetChangeDetectionThreshold(double threshold); // 0.0 - 1.0

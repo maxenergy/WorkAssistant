@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common_types.h"
 #include "ocr_engine.h"
 #include <string>
 #include <vector>
@@ -9,83 +10,6 @@
 #include <unordered_map>
 
 namespace work_assistant {
-
-// Content type classification
-enum class ContentType {
-    UNKNOWN = 0,
-    DOCUMENT,       // Text documents, PDFs, etc.
-    CODE,           // Programming code
-    EMAIL,          // Email content
-    WEB_BROWSING,   // Web pages, browsing
-    SOCIAL_MEDIA,   // Social platforms
-    PRODUCTIVITY,   // Office apps, spreadsheets
-    ENTERTAINMENT,  // Videos, games, media
-    COMMUNICATION,  // Chat, messaging
-    DEVELOPMENT,    // IDEs, terminals, dev tools
-    DESIGN,         // Design tools, graphics
-    EDUCATION,      // Learning materials, courses
-    FINANCE,        // Financial apps, banking
-    SETTINGS        // System settings, preferences
-};
-
-// Activity priority levels
-enum class ActivityPriority {
-    VERY_LOW = 1,
-    LOW = 2,
-    MEDIUM = 3,
-    HIGH = 4,
-    VERY_HIGH = 5
-};
-
-// Work category classification
-enum class WorkCategory {
-    UNKNOWN = 0,
-    FOCUSED_WORK,     // Deep work, coding, writing
-    COMMUNICATION,    // Meetings, emails, chat
-    RESEARCH,         // Information gathering, reading
-    LEARNING,         // Tutorials, documentation
-    PLANNING,         // Project management, calendars
-    BREAK_TIME,       // Social media, entertainment
-    ADMINISTRATIVE,   // Settings, file management
-    CREATIVE,         // Design, content creation
-    ANALYSIS,         // Data analysis, reports
-    COLLABORATION     // Shared work, reviews
-};
-
-// Comprehensive content analysis result
-struct ContentAnalysis {
-    // Basic classification
-    ContentType content_type = ContentType::UNKNOWN;
-    ActivityPriority priority = ActivityPriority::MEDIUM;
-    WorkCategory work_category = WorkCategory::UNKNOWN;
-    
-    // Confidence scores (0.0 - 1.0)
-    float classification_confidence = 0.0f;
-    float priority_confidence = 0.0f;
-    float category_confidence = 0.0f;
-    
-    // Content details
-    std::string title;
-    std::string application;
-    std::string extracted_text;
-    std::vector<std::string> keywords;
-    std::vector<std::string> entities;  // Names, places, organizations
-    
-    // Productivity metrics
-    bool is_productive = false;
-    bool is_focused_work = false;
-    bool requires_attention = false;
-    int distraction_level = 0;  // 0-10 scale
-    
-    // Time context
-    std::chrono::system_clock::time_point timestamp;
-    std::chrono::milliseconds processing_time{0};
-    
-    // Metadata
-    std::unordered_map<std::string, std::string> metadata;
-    
-    ContentAnalysis() = default;
-};
 
 // AI prompt templates and configuration
 struct AIPromptConfig {

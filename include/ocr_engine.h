@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common_types.h"
 #include "screen_capture.h"
 #include <string>
 #include <vector>
@@ -8,46 +9,28 @@
 
 namespace work_assistant {
 
-// OCR result structure
-struct OCRResult {
-    std::string text;
-    float confidence;
-    int x, y, width, height;  // Bounding box
-    
-    OCRResult() : confidence(0.0f), x(0), y(0), width(0), height(0) {}
-    OCRResult(const std::string& txt, float conf, int bx, int by, int bw, int bh)
-        : text(txt), confidence(conf), x(bx), y(by), width(bw), height(bh) {}
-};
-
-// OCR document structure - collection of text blocks
-struct OCRDocument {
-    std::vector<OCRResult> text_blocks;
-    std::string full_text;
-    float overall_confidence;
-    std::chrono::system_clock::time_point timestamp;
-    
-    OCRDocument() : overall_confidence(0.0f) {}
-    
-    // Combine all text blocks into full text
-    void CombineText();
-    
-    // Filter results by confidence threshold
-    std::vector<OCRResult> GetHighConfidenceResults(float threshold = 0.7f) const;
-    
-    // Get text in reading order (top-to-bottom, left-to-right)
-    std::string GetOrderedText() const;
-};
-
 // OCR preprocessing options
 struct OCROptions {
+    // General options
     bool auto_preprocess = true;        // Apply automatic image preprocessing
     float scale_factor = 1.0f;          // Scale image before OCR (1.0 = no scaling)
     bool denoise = true;                // Apply denoising
     bool enhance_contrast = true;       // Enhance contrast
     bool binarize = true;               // Convert to black/white
     float confidence_threshold = 0.5f;  // Minimum confidence for results
-    std::string language = "eng";       // Tesseract language (eng, chi_sim, etc.)
+    std::string language = "eng";       // Language (eng, chi_sim, etc.)
     bool preserve_whitespace = true;    // Preserve whitespace in output
+    
+    // Mode-specific options
+    OCRMode preferred_mode = OCRMode::AUTO;  // Preferred processing mode
+    bool enable_multimodal = true;      // Enable multimodal capabilities when available
+    bool use_gpu = true;                // Use GPU acceleration when available
+    int max_image_size = 2048;          // Maximum image dimension for processing
+    
+    // Performance options
+    bool enable_caching = true;         // Enable result caching
+    int cache_ttl_seconds = 300;        // Cache time-to-live
+    bool batch_processing = false;      // Enable batch processing optimization
     
     OCROptions() = default;
 };
@@ -81,13 +64,22 @@ public:
     virtual std::string GetEngineInfo() const = 0;
 };
 
+// OCR processing modes
+enum class OCRMode {
+    FAST,           // 快速模式：PaddleOCR v4
+    ACCURATE,       // 高精度模式：MiniCPM-V 2.0
+    MULTIMODAL,     // 多模态理解：MiniCPM-V 2.0 + 问答
+    AUTO            // 智能选择
+};
+
 // OCR engine factory
 class OCREngineFactory {
 public:
     enum class EngineType {
-        TESSERACT,      // Tesseract OCR
-        WINDOWS_OCR,    // Windows.Media.Ocr (Windows 10+)
-        CLOUD_VISION    // Future: Google Vision, Azure, etc.
+        TESSERACT,      // Tesseract OCR (Legacy)
+        PADDLE_OCR,     // PaddleOCR v4 (轻量级)
+        MINICPM_V,      // MiniCPM-V 2.0 (多模态)
+        AUTO_SELECT     // 自动选择最佳引擎
     };
     
     static std::unique_ptr<IOCREngine> Create(EngineType type = EngineType::TESSERACT);
@@ -100,8 +92,13 @@ public:
     OCRManager();
     ~OCRManager();
 
-    // Initialize with preferred engine
-    bool Initialize(OCREngineFactory::EngineType engineType = OCREngineFactory::EngineType::TESSERACT);
+    // Initialize with preferred engine or mode
+    bool Initialize(OCREngineFactory::EngineType engineType = OCREngineFactory::EngineType::AUTO_SELECT);
+    bool Initialize(OCRMode mode = OCRMode::AUTO);
+    
+    // Switch OCR mode dynamically
+    bool SetOCRMode(OCRMode mode);
+    OCRMode GetCurrentMode() const;
     void Shutdown();
 
     // Process content from screen captures
@@ -109,16 +106,28 @@ public:
     std::future<OCRDocument> ExtractTextAsync(const CaptureFrame& frame);
 
     // Process specific window content
-    OCRDocument ExtractWindowText(uint64_t windowHandle);
+    OCRDocument ExtractWindowText(WindowHandle windowHandle);
 
     // Content analysis
     bool ContainsText(const CaptureFrame& frame, const std::string& searchText);
     std::vector<std::string> ExtractKeywords(const OCRDocument& document);
     
+    // Multimodal capabilities (MiniCPM-V only)
+    std::string AnswerQuestion(const CaptureFrame& frame, const std::string& question);
+    std::string DescribeImage(const CaptureFrame& frame);
+    std::vector<std::string> ExtractStructuredData(const CaptureFrame& frame, const std::string& dataType);
+    
     // Configuration
     void SetLanguage(const std::string& language);
     void SetConfidenceThreshold(float threshold);
     void EnablePreprocessing(bool enable);
+    void SetOptions(const OCROptions& options);
+    OCROptions GetOptions() const;
+    
+    // Performance and resource management
+    void EnableGPU(bool enable);
+    void SetMaxImageSize(int max_size);
+    void EnableCaching(bool enable, int ttl_seconds = 300);
 
     // Performance monitoring
     struct Statistics {

@@ -4,6 +4,9 @@ set(CORE_SOURCES
     thread_pool.cpp
     screen_capture_manager.cpp
     ocr_manager.cpp
+    ocr_utils.cpp
+    paddle_ocr_engine.cpp
+    minicpm_v_engine.cpp
     tesseract_engine.cpp
 )
 
@@ -13,6 +16,8 @@ set(CORE_HEADERS
     ${CMAKE_SOURCE_DIR}/include/thread_pool.h
     ${CMAKE_SOURCE_DIR}/include/screen_capture.h
     ${CMAKE_SOURCE_DIR}/include/ocr_engine.h
+    ${CMAKE_SOURCE_DIR}/include/paddle_ocr_engine.h
+    ${CMAKE_SOURCE_DIR}/include/minicpm_v_engine.h
 )
 
 add_library(core_lib STATIC
@@ -26,4 +31,6 @@ target_include_directories(core_lib PUBLIC
 
 target_link_libraries(core_lib
     ${CMAKE_THREAD_LIBS_INIT}
+    paddle_inference
+    opencv_inference
 )

@@ -95,7 +95,8 @@ public:
             }
         }
 
-        document.CombineText();
+        // Generate full text from text blocks
+        document.full_text = document.GetOrderedText();
         return document;
     }
 

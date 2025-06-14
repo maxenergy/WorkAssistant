@@ -132,7 +132,7 @@ public:
         }
     }
 
-    bool CaptureWindow(uint64_t windowHandle, CaptureFrame& frame) {
+    bool CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame) {
         if (!m_initialized) {
             return false;
         }
@@ -261,7 +261,7 @@ bool ScreenCaptureManager::CaptureNow(CaptureFrame& frame) {
     return m_impl->CaptureNow(frame);
 }
 
-bool ScreenCaptureManager::CaptureWindow(uint64_t windowHandle, CaptureFrame& frame) {
+bool ScreenCaptureManager::CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame) {
     return m_impl->CaptureWindow(windowHandle, frame);
 }
 

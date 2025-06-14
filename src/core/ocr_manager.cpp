@@ -1,4 +1,6 @@
 #include "ocr_engine.h"
+#include "paddle_ocr_engine.h"
+#include "minicpm_v_engine.h"
 #include <iostream>
 #include <algorithm>
 #include <regex>
@@ -9,102 +11,134 @@
 
 namespace work_assistant {
 
-// OCRDocument implementation
-void OCRDocument::CombineText() {
-    full_text.clear();
-    if (text_blocks.empty()) {
-        return;
-    }
-
-    // Sort blocks by reading order (top-to-bottom, left-to-right)
-    std::vector<OCRResult> sorted_blocks = text_blocks;
-    std::sort(sorted_blocks.begin(), sorted_blocks.end(), 
-              [](const OCRResult& a, const OCRResult& b) {
-                  // First sort by Y position (top to bottom)
-                  if (std::abs(a.y - b.y) > 20) { // 20px tolerance for same line
-                      return a.y < b.y;
-                  }
-                  // Then by X position (left to right)
-                  return a.x < b.x;
-              });
-
-    // Combine text with proper spacing
-    for (size_t i = 0; i < sorted_blocks.size(); ++i) {
-        if (!sorted_blocks[i].text.empty()) {
-            full_text += sorted_blocks[i].text;
-            
-            // Add space or newline based on position
-            if (i < sorted_blocks.size() - 1) {
-                const auto& current = sorted_blocks[i];
-                const auto& next = sorted_blocks[i + 1];
-                
-                // If next block is significantly below, add newline
-                if (next.y > current.y + current.height + 10) {
-                    full_text += "\n";
-                } else {
-                    full_text += " ";
-                }
+// OCR Engine Factory implementation with dual-mode support
+std::unique_ptr<IOCREngine> OCREngineFactory::Create(EngineType type) {
+    switch (type) {
+        case EngineType::PADDLE_OCR:
+            return std::make_unique<PaddleOCREngine>();
+        case EngineType::MINICPM_V:
+            return std::make_unique<MiniCPMVEngine>();
+        case EngineType::AUTO_SELECT: {
+            // Try MiniCPM-V first (if GPU available), fallback to PaddleOCR
+            auto minicpm = std::make_unique<MiniCPMVEngine>();
+            OCROptions options;
+            options.use_gpu = true;
+            if (minicpm->Initialize(options)) {
+                std::cout << "Auto-selected MiniCPM-V engine" << std::endl;
+                return minicpm;
             }
+            
+            std::cout << "Falling back to PaddleOCR engine" << std::endl;
+            return std::make_unique<PaddleOCREngine>();
         }
-    }
-
-    // Calculate overall confidence
-    if (!text_blocks.empty()) {
-        float total_confidence = 0.0f;
-        for (const auto& block : text_blocks) {
-            total_confidence += block.confidence;
-        }
-        overall_confidence = total_confidence / text_blocks.size();
+        case EngineType::TESSERACT:
+        default:
+            std::cerr << "Legacy Tesseract engine deprecated, using PaddleOCR" << std::endl;
+            return std::make_unique<PaddleOCREngine>();
     }
 }
 
-std::vector<OCRResult> OCRDocument::GetHighConfidenceResults(float threshold) const {
-    std::vector<OCRResult> results;
-    for (const auto& block : text_blocks) {
-        if (block.confidence >= threshold) {
-            results.push_back(block);
-        }
-    }
-    return results;
+std::vector<OCREngineFactory::EngineType> OCREngineFactory::GetAvailableEngines() {
+    return {
+        EngineType::PADDLE_OCR,
+        EngineType::MINICPM_V, 
+        EngineType::AUTO_SELECT
+    };
 }
 
-std::string OCRDocument::GetOrderedText() const {
-    if (full_text.empty()) {
-        const_cast<OCRDocument*>(this)->CombineText();
-    }
-    return full_text;
-}
-
-// OCR Manager implementation
+// Dual-mode OCR Manager implementation
 class OCRManager::Impl {
 public:
-    Impl() : m_initialized(false), m_statistics{} {}
+    Impl() : m_initialized(false), m_current_mode(OCRMode::AUTO), m_statistics{} {}
 
     bool Initialize(OCREngineFactory::EngineType engineType) {
         if (m_initialized) {
             return true;
         }
 
-        m_engine = OCREngineFactory::Create(engineType);
-        if (!m_engine) {
-            std::cerr << "Failed to create OCR engine" << std::endl;
+        // Initialize primary engine
+        m_primary_engine = OCREngineFactory::Create(engineType);
+        if (!m_primary_engine) {
+            std::cerr << "Failed to create primary OCR engine" << std::endl;
             return false;
         }
 
         OCROptions options;
         options.language = "eng";
-        options.confidence_threshold = 0.5f;
+        options.confidence_threshold = 0.6f;
         options.auto_preprocess = true;
+        options.use_gpu = true;
 
-        if (!m_engine->Initialize(options)) {
-            std::cerr << "Failed to initialize OCR engine" << std::endl;
-            m_engine.reset();
+        if (!m_primary_engine->Initialize(options)) {
+            std::cerr << "Failed to initialize primary OCR engine" << std::endl;
             return false;
         }
 
+        // Try to initialize secondary engine for fallback
+        InitializeSecondaryEngine();
+
         m_initialized = true;
-        std::cout << "OCR Manager initialized with " << m_engine->GetEngineInfo() << std::endl;
+        m_current_options = options;
+        
+        std::cout << "Dual-mode OCR Manager initialized with " 
+                  << m_primary_engine->GetEngineInfo() << std::endl;
         return true;
+    }
+
+    bool Initialize(OCRMode mode) {
+        OCREngineFactory::EngineType engineType;
+        switch (mode) {
+            case OCRMode::FAST:
+                engineType = OCREngineFactory::EngineType::PADDLE_OCR;
+                break;
+            case OCRMode::ACCURATE:
+            case OCRMode::MULTIMODAL:
+                engineType = OCREngineFactory::EngineType::MINICPM_V;
+                break;
+            case OCRMode::AUTO:
+            default:
+                engineType = OCREngineFactory::EngineType::AUTO_SELECT;
+                break;
+        }
+        
+        m_current_mode = mode;
+        return Initialize(engineType);
+    }
+
+    bool SetOCRMode(OCRMode mode) {
+        if (!m_initialized) {
+            return false;
+        }
+
+        if (m_current_mode == mode) {
+            return true; // Already in the requested mode
+        }
+
+        // Switch engines if needed
+        switch (mode) {
+            case OCRMode::FAST:
+                if (!EnsurePaddleOCREngine()) {
+                    return false;
+                }
+                break;
+            case OCRMode::ACCURATE:
+            case OCRMode::MULTIMODAL:
+                if (!EnsureMiniCPMVEngine()) {
+                    return false;
+                }
+                break;
+            case OCRMode::AUTO:
+                // Keep current engine, just change mode
+                break;
+        }
+
+        m_current_mode = mode;
+        std::cout << "Switched to OCR mode: " << static_cast<int>(mode) << std::endl;
+        return true;
+    }
+
+    OCRMode GetCurrentMode() const {
+        return m_current_mode;
     }
 
     void Shutdown() {
@@ -112,60 +146,118 @@ public:
             return;
         }
 
-        if (m_engine) {
-            m_engine->Shutdown();
-            m_engine.reset();
+        if (m_primary_engine) {
+            m_primary_engine->Shutdown();
+            m_primary_engine.reset();
+        }
+
+        if (m_secondary_engine) {
+            m_secondary_engine->Shutdown();
+            m_secondary_engine.reset();
         }
 
         m_initialized = false;
-        std::cout << "OCR Manager shut down" << std::endl;
+        std::cout << "Dual-mode OCR Manager shut down" << std::endl;
     }
 
     OCRDocument ExtractText(const CaptureFrame& frame) {
-        if (!m_initialized || !m_engine) {
+        if (!m_initialized || !m_primary_engine) {
             return OCRDocument();
         }
 
         auto start_time = std::chrono::high_resolution_clock::now();
+
+        // Choose engine based on current mode
+        IOCREngine* engine = SelectEngine(frame);
         
-        OCRDocument result = m_engine->ProcessImage(frame);
-        
+        OCRDocument document = engine->ProcessImage(frame);
+        document.timestamp = std::chrono::system_clock::now();
+
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
         // Update statistics
-        UpdateStatistics(result, duration.count());
+        UpdateStatistics(document, duration.count());
 
-        return result;
+        return document;
     }
 
     std::future<OCRDocument> ExtractTextAsync(const CaptureFrame& frame) {
-        if (!m_initialized || !m_engine) {
+        if (!m_initialized || !m_primary_engine) {
             std::promise<OCRDocument> promise;
             promise.set_value(OCRDocument());
             return promise.get_future();
         }
 
-        return m_engine->ProcessImageAsync(frame);
+        IOCREngine* engine = SelectEngine(frame);
+        return engine->ProcessImageAsync(frame);
     }
 
-    OCRDocument ExtractWindowText(uint64_t windowHandle) {
-        // This would require integration with screen capture
+    OCRDocument ExtractWindowText(WindowHandle windowHandle) {
+        if (!m_initialized) {
+            return OCRDocument();
+        }
+
         // For now, return empty document
-        return OCRDocument();
+        // In a full implementation, we would capture the specific window
+        OCRDocument document;
+        document.timestamp = std::chrono::system_clock::now();
+        return document;
+    }
+
+    // Multimodal capabilities (MiniCPM-V only)
+    std::string AnswerQuestion(const CaptureFrame& frame, const std::string& question) {
+        if (!EnsureMiniCPMVEngine()) {
+            return "Multimodal capabilities not available";
+        }
+
+        auto* minicpm_engine = dynamic_cast<MiniCPMVEngine*>(GetMiniCPMVEngine());
+        if (!minicpm_engine) {
+            return "MiniCPM-V engine not available";
+        }
+
+        auto response = minicpm_engine->AnswerQuestion(frame, question);
+        return response.text_content;
+    }
+
+    std::string DescribeImage(const CaptureFrame& frame) {
+        if (!EnsureMiniCPMVEngine()) {
+            return "Image description not available";
+        }
+
+        auto* minicpm_engine = dynamic_cast<MiniCPMVEngine*>(GetMiniCPMVEngine());
+        if (!minicpm_engine) {
+            return "MiniCPM-V engine not available";
+        }
+
+        auto response = minicpm_engine->DescribeImage(frame);
+        return response.text_content;
+    }
+
+    std::vector<std::string> ExtractStructuredData(const CaptureFrame& frame, const std::string& dataType) {
+        if (!EnsureMiniCPMVEngine()) {
+            return {};
+        }
+
+        auto* minicpm_engine = dynamic_cast<MiniCPMVEngine*>(GetMiniCPMVEngine());
+        if (!minicpm_engine) {
+            return {};
+        }
+
+        auto response = minicpm_engine->ExtractStructuredData(frame, dataType);
+        return response.detected_elements;
     }
 
     bool ContainsText(const CaptureFrame& frame, const std::string& searchText) {
-        OCRDocument doc = ExtractText(frame);
-        std::string fullText = doc.GetOrderedText();
+        OCRDocument document = ExtractText(frame);
+        std::string text = document.GetOrderedText();
         
-        // Case-insensitive search
-        std::string lowerFullText = fullText;
-        std::string lowerSearchText = searchText;
-        std::transform(lowerFullText.begin(), lowerFullText.end(), lowerFullText.begin(), ::tolower);
-        std::transform(lowerSearchText.begin(), lowerSearchText.end(), lowerSearchText.begin(), ::tolower);
+        // Convert to lowercase for case-insensitive search
+        std::transform(text.begin(), text.end(), text.begin(), ::tolower);
+        std::string searchLower = searchText;
+        std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
         
-        return lowerFullText.find(lowerSearchText) != std::string::npos;
+        return text.find(searchLower) != std::string::npos;
     }
 
     std::vector<std::string> ExtractKeywords(const OCRDocument& document) {
@@ -176,48 +268,86 @@ public:
             return keywords;
         }
 
-        // Simple keyword extraction - split by whitespace and filter
-        std::istringstream iss(text);
-        std::string word;
-        std::set<std::string> uniqueWords;
-        
-        while (iss >> word) {
-            // Clean word
-            word = ocr_utils::CleanExtractedText(word);
+        // Simple keyword extraction using regex
+        std::regex word_regex(R"(\b[a-zA-Z\u4e00-\u9fff]{2,}\b)"); // Support Chinese characters
+        std::sregex_iterator iter(text.begin(), text.end(), word_regex);
+        std::sregex_iterator end;
+
+        std::set<std::string> unique_words;
+        for (; iter != end; ++iter) {
+            std::string word = iter->str();
+            std::transform(word.begin(), word.end(), word.begin(), ::tolower);
             
-            // Filter out short words and common words
-            if (word.length() >= 3 && IsKeywordCandidate(word)) {
-                std::transform(word.begin(), word.end(), word.begin(), ::tolower);
-                uniqueWords.insert(word);
+            // Skip common words
+            if (IsCommonWord(word)) {
+                continue;
             }
+            
+            unique_words.insert(word);
         }
-        
-        keywords.assign(uniqueWords.begin(), uniqueWords.end());
+
+        keywords.assign(unique_words.begin(), unique_words.end());
         return keywords;
     }
 
     void SetLanguage(const std::string& language) {
-        if (m_engine) {
-            OCROptions options = m_engine->GetOptions();
-            options.language = language;
-            m_engine->SetOptions(options);
+        m_current_options.language = language;
+        if (m_primary_engine) {
+            m_primary_engine->SetOptions(m_current_options);
+        }
+        if (m_secondary_engine) {
+            m_secondary_engine->SetOptions(m_current_options);
         }
     }
 
     void SetConfidenceThreshold(float threshold) {
-        if (m_engine) {
-            OCROptions options = m_engine->GetOptions();
-            options.confidence_threshold = threshold;
-            m_engine->SetOptions(options);
+        m_current_options.confidence_threshold = threshold;
+        if (m_primary_engine) {
+            m_primary_engine->SetOptions(m_current_options);
+        }
+        if (m_secondary_engine) {
+            m_secondary_engine->SetOptions(m_current_options);
         }
     }
 
     void EnablePreprocessing(bool enable) {
-        if (m_engine) {
-            OCROptions options = m_engine->GetOptions();
-            options.auto_preprocess = enable;
-            m_engine->SetOptions(options);
+        m_current_options.auto_preprocess = enable;
+        if (m_primary_engine) {
+            m_primary_engine->SetOptions(m_current_options);
         }
+        if (m_secondary_engine) {
+            m_secondary_engine->SetOptions(m_current_options);
+        }
+    }
+
+    void SetOptions(const OCROptions& options) {
+        m_current_options = options;
+        if (m_primary_engine) {
+            m_primary_engine->SetOptions(options);
+        }
+        if (m_secondary_engine) {
+            m_secondary_engine->SetOptions(options);
+        }
+    }
+
+    OCROptions GetOptions() const {
+        return m_current_options;
+    }
+
+    void EnableGPU(bool enable) {
+        m_current_options.use_gpu = enable;
+        SetOptions(m_current_options);
+    }
+
+    void SetMaxImageSize(int max_size) {
+        m_current_options.max_image_size = max_size;
+        SetOptions(m_current_options);
+    }
+
+    void EnableCaching(bool enable, int ttl_seconds) {
+        m_current_options.enable_caching = enable;
+        m_current_options.cache_ttl_seconds = ttl_seconds;
+        SetOptions(m_current_options);
     }
 
     OCRManager::Statistics GetStatistics() const {
@@ -225,43 +355,129 @@ public:
     }
 
     void ResetStatistics() {
-        m_statistics = Statistics{};
+        m_statistics = OCRManager::Statistics{};
     }
 
 private:
-    void UpdateStatistics(const OCRDocument& result, double processing_time_ms) {
-        m_statistics.total_processed++;
-        
-        if (!result.text_blocks.empty()) {
-            m_statistics.successful_extractions++;
-            
-            // Update average confidence
-            double total_confidence = m_statistics.average_confidence * (m_statistics.successful_extractions - 1);
-            total_confidence += result.overall_confidence;
-            m_statistics.average_confidence = total_confidence / m_statistics.successful_extractions;
+    void InitializeSecondaryEngine() {
+        // Try to initialize the other engine type for fallback
+        if (dynamic_cast<PaddleOCREngine*>(m_primary_engine.get())) {
+            // Primary is PaddleOCR, try MiniCPM-V as secondary
+            m_secondary_engine = std::make_unique<MiniCPMVEngine>();
+        } else {
+            // Primary is MiniCPM-V, try PaddleOCR as secondary
+            m_secondary_engine = std::make_unique<PaddleOCREngine>();
+        }
+
+        if (m_secondary_engine) {
+            OCROptions options = m_current_options;
+            if (!m_secondary_engine->Initialize(options)) {
+                m_secondary_engine.reset(); // Failed to initialize, remove it
+            }
+        }
+    }
+
+    IOCREngine* SelectEngine(const CaptureFrame& frame) {
+        switch (m_current_mode) {
+            case OCRMode::FAST:
+                return GetPaddleOCREngine();
+            case OCRMode::ACCURATE:
+            case OCRMode::MULTIMODAL:
+                return GetMiniCPMVEngine();
+            case OCRMode::AUTO:
+                // Intelligent selection based on image characteristics
+                return SelectEngineIntelligently(frame);
+        }
+        return m_primary_engine.get();
+    }
+
+    IOCREngine* SelectEngineIntelligently(const CaptureFrame& frame) {
+        // Simple heuristics for engine selection
+        if (frame.GetDataSize() > 1920 * 1080 * 4) {
+            // Large image, use fast engine
+            return GetPaddleOCREngine();
         }
         
+        // Default to primary engine
+        return m_primary_engine.get();
+    }
+
+    IOCREngine* GetPaddleOCREngine() {
+        if (dynamic_cast<PaddleOCREngine*>(m_primary_engine.get())) {
+            return m_primary_engine.get();
+        }
+        if (dynamic_cast<PaddleOCREngine*>(m_secondary_engine.get())) {
+            return m_secondary_engine.get();
+        }
+        return m_primary_engine.get(); // Fallback
+    }
+
+    IOCREngine* GetMiniCPMVEngine() {
+        if (dynamic_cast<MiniCPMVEngine*>(m_primary_engine.get())) {
+            return m_primary_engine.get();
+        }
+        if (dynamic_cast<MiniCPMVEngine*>(m_secondary_engine.get())) {
+            return m_secondary_engine.get();
+        }
+        return nullptr;
+    }
+
+    bool EnsurePaddleOCREngine() {
+        return GetPaddleOCREngine() != nullptr;
+    }
+
+    bool EnsureMiniCPMVEngine() {
+        return GetMiniCPMVEngine() != nullptr;
+    }
+
+    void UpdateStatistics(const OCRDocument& document, double processing_time_ms) {
+        m_statistics.total_processed++;
+        
+        if (!document.text_blocks.empty()) {
+            m_statistics.successful_extractions++;
+        }
+
         // Update average processing time
         double total_time = m_statistics.average_processing_time_ms * (m_statistics.total_processed - 1);
         total_time += processing_time_ms;
         m_statistics.average_processing_time_ms = total_time / m_statistics.total_processed;
+
+        // Update average confidence
+        if (document.overall_confidence > 0.0f) {
+            double total_confidence = m_statistics.average_confidence * (m_statistics.successful_extractions - 1);
+            total_confidence += document.overall_confidence;
+            m_statistics.average_confidence = total_confidence / m_statistics.successful_extractions;
+        }
     }
 
-    bool IsKeywordCandidate(const std::string& word) {
-        // Simple heuristics for keyword filtering
-        static const std::set<std::string> commonWords = {
-            "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "day", "get", "has", "him", "his", "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy", "did", "its", "let", "put", "say", "she", "too", "use"
+    bool IsCommonWord(const std::string& word) {
+        static const std::set<std::string> common_words = {
+            "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
+            "by", "from", "up", "about", "into", "through", "during", "before",
+            "after", "above", "below", "between", "among", "since", "without",
+            "under", "within", "along", "following", "across", "behind", "beyond",
+            "plus", "except", "but", "unless", "until", "while", "where", "when",
+            "why", "how", "all", "any", "both", "each", "few", "more", "most",
+            "other", "some", "such", "only", "own", "same", "so", "than", "too",
+            "very", "can", "will", "just", "should", "now", "may", "must", "shall",
+            "would", "could", "might", "ought", "need", "dare", "used", "able",
+            "\u7684", "\u4e00", "\u662f", "\u5728", "\u4e0d", "\u4e86", "\u6709", "\u548c", "\u4eba", "\u8fd9", 
+            "\u4e2d", "\u5927", "\u4e3a", "\u4e0a", "\u4e2a", "\u56fd", "\u6211", "\u4ee5", "\u8981", "\u4ed6", 
+            "\u65f6", "\u6765", "\u7528", "\u4eec", "\u751f", "\u5230", "\u4f5c", "\u5730", "\u4e8e", "\u51fa", 
+            "\u5c31", "\u5206", "\u5bf9", "\u6210", "\u4f1a", "\u53ef", "\u4e3b", "\u53d1", "\u5e74", "\u52a8", 
+            "\u540c", "\u5de5", "\u4e5f", "\u80fd", "\u4e0b", "\u8fc7", "\u5b50", "\u8bf4", "\u4ea7", "\u79cd", 
+            "\u9762", "\u800c", "\u65b9", "\u540e", "\u591a", "\u5b9a", "\u884c", "\u5b66", "\u6cd5", "\u6240"
         };
         
-        std::string lowerWord = word;
-        std::transform(lowerWord.begin(), lowerWord.end(), lowerWord.begin(), ::tolower);
-        
-        return commonWords.find(lowerWord) == commonWords.end();
+        return common_words.find(word) != common_words.end();
     }
 
 private:
     bool m_initialized;
-    std::unique_ptr<IOCREngine> m_engine;
+    OCRMode m_current_mode;
+    std::unique_ptr<IOCREngine> m_primary_engine;
+    std::unique_ptr<IOCREngine> m_secondary_engine;
+    OCROptions m_current_options;
     OCRManager::Statistics m_statistics;
 };
 
@@ -271,6 +487,18 @@ OCRManager::~OCRManager() = default;
 
 bool OCRManager::Initialize(OCREngineFactory::EngineType engineType) {
     return m_impl->Initialize(engineType);
+}
+
+bool OCRManager::Initialize(OCRMode mode) {
+    return m_impl->Initialize(mode);
+}
+
+bool OCRManager::SetOCRMode(OCRMode mode) {
+    return m_impl->SetOCRMode(mode);
+}
+
+OCRMode OCRManager::GetCurrentMode() const {
+    return m_impl->GetCurrentMode();
 }
 
 void OCRManager::Shutdown() {
@@ -285,8 +513,20 @@ std::future<OCRDocument> OCRManager::ExtractTextAsync(const CaptureFrame& frame)
     return m_impl->ExtractTextAsync(frame);
 }
 
-OCRDocument OCRManager::ExtractWindowText(uint64_t windowHandle) {
+OCRDocument OCRManager::ExtractWindowText(WindowHandle windowHandle) {
     return m_impl->ExtractWindowText(windowHandle);
+}
+
+std::string OCRManager::AnswerQuestion(const CaptureFrame& frame, const std::string& question) {
+    return m_impl->AnswerQuestion(frame, question);
+}
+
+std::string OCRManager::DescribeImage(const CaptureFrame& frame) {
+    return m_impl->DescribeImage(frame);
+}
+
+std::vector<std::string> OCRManager::ExtractStructuredData(const CaptureFrame& frame, const std::string& dataType) {
+    return m_impl->ExtractStructuredData(frame, dataType);
 }
 
 bool OCRManager::ContainsText(const CaptureFrame& frame, const std::string& searchText) {
@@ -309,6 +549,26 @@ void OCRManager::EnablePreprocessing(bool enable) {
     m_impl->EnablePreprocessing(enable);
 }
 
+void OCRManager::SetOptions(const OCROptions& options) {
+    m_impl->SetOptions(options);
+}
+
+OCROptions OCRManager::GetOptions() const {
+    return m_impl->GetOptions();
+}
+
+void OCRManager::EnableGPU(bool enable) {
+    m_impl->EnableGPU(enable);
+}
+
+void OCRManager::SetMaxImageSize(int max_size) {
+    m_impl->SetMaxImageSize(max_size);
+}
+
+void OCRManager::EnableCaching(bool enable, int ttl_seconds) {
+    m_impl->EnableCaching(enable, ttl_seconds);
+}
+
 OCRManager::Statistics OCRManager::GetStatistics() const {
     return m_impl->GetStatistics();
 }
@@ -316,281 +576,5 @@ OCRManager::Statistics OCRManager::GetStatistics() const {
 void OCRManager::ResetStatistics() {
     m_impl->ResetStatistics();
 }
-
-// OCR utilities implementation
-namespace ocr_utils {
-
-bool PreprocessImage(const CaptureFrame& input, CaptureFrame& output, const OCROptions& options) {
-    if (!input.IsValid()) {
-        return false;
-    }
-
-    output = input; // Start with copy
-
-    if (options.auto_preprocess) {
-        // Apply preprocessing pipeline
-        if (options.scale_factor != 1.0f) {
-            CaptureFrame scaled;
-            if (ScaleImage(output, scaled, options.scale_factor)) {
-                output = scaled;
-            }
-        }
-
-        if (options.denoise) {
-            DenoiseImage(output);
-        }
-
-        if (options.enhance_contrast) {
-            EnhanceContrast(output);
-        }
-
-        // Convert to grayscale before binarization
-        CaptureFrame grayscale;
-        if (ConvertToGrayscale(output, grayscale)) {
-            output = grayscale;
-        }
-
-        if (options.binarize) {
-            BinarizeImage(output);
-        }
-    }
-
-    return true;
-}
-
-bool ScaleImage(const CaptureFrame& input, CaptureFrame& output, float scale) {
-    if (!input.IsValid() || scale <= 0.0f) {
-        return false;
-    }
-
-    int newWidth = static_cast<int>(input.width * scale);
-    int newHeight = static_cast<int>(input.height * scale);
-
-    output.width = newWidth;
-    output.height = newHeight;
-    output.bytes_per_pixel = input.bytes_per_pixel;
-    output.timestamp = input.timestamp;
-    output.data.resize(output.GetDataSize());
-
-    // Simple nearest neighbor scaling
-    for (int y = 0; y < newHeight; ++y) {
-        for (int x = 0; x < newWidth; ++x) {
-            int srcX = static_cast<int>(x / scale);
-            int srcY = static_cast<int>(y / scale);
-            
-            // Clamp to source bounds
-            srcX = std::min(srcX, input.width - 1);
-            srcY = std::min(srcY, input.height - 1);
-            
-            int srcIndex = (srcY * input.width + srcX) * input.bytes_per_pixel;
-            int dstIndex = (y * newWidth + x) * output.bytes_per_pixel;
-            
-            for (int c = 0; c < input.bytes_per_pixel; ++c) {
-                output.data[dstIndex + c] = input.data[srcIndex + c];
-            }
-        }
-    }
-
-    return true;
-}
-
-bool ConvertToGrayscale(const CaptureFrame& input, CaptureFrame& output) {
-    if (!input.IsValid() || input.bytes_per_pixel < 3) {
-        return false;
-    }
-
-    output.width = input.width;
-    output.height = input.height;
-    output.bytes_per_pixel = 1;
-    output.timestamp = input.timestamp;
-    output.data.resize(output.GetDataSize());
-
-    for (int i = 0; i < input.width * input.height; ++i) {
-        int srcIndex = i * input.bytes_per_pixel;
-        uint8_t r = input.data[srcIndex];
-        uint8_t g = input.data[srcIndex + 1];
-        uint8_t b = input.data[srcIndex + 2];
-        
-        // Use standard grayscale conversion
-        uint8_t gray = static_cast<uint8_t>(0.299 * r + 0.587 * g + 0.114 * b);
-        output.data[i] = gray;
-    }
-
-    return true;
-}
-
-bool EnhanceContrast(CaptureFrame& frame, float factor) {
-    if (!frame.IsValid() || factor <= 0.0f) {
-        return false;
-    }
-
-    for (size_t i = 0; i < frame.data.size(); ++i) {
-        float pixel = static_cast<float>(frame.data[i]);
-        pixel = (pixel - 128.0f) * factor + 128.0f;
-        pixel = std::max(0.0f, std::min(255.0f, pixel));
-        frame.data[i] = static_cast<uint8_t>(pixel);
-    }
-
-    return true;
-}
-
-bool DenoiseImage(CaptureFrame& frame) {
-    if (!frame.IsValid()) {
-        return false;
-    }
-
-    // Simple median filter for denoising
-    std::vector<uint8_t> temp = frame.data;
-    
-    for (int y = 1; y < frame.height - 1; ++y) {
-        for (int x = 1; x < frame.width - 1; ++x) {
-            for (int c = 0; c < frame.bytes_per_pixel; ++c) {
-                std::vector<uint8_t> neighborhood;
-                
-                for (int dy = -1; dy <= 1; ++dy) {
-                    for (int dx = -1; dx <= 1; ++dx) {
-                        int idx = ((y + dy) * frame.width + (x + dx)) * frame.bytes_per_pixel + c;
-                        neighborhood.push_back(temp[idx]);
-                    }
-                }
-                
-                std::sort(neighborhood.begin(), neighborhood.end());
-                int idx = (y * frame.width + x) * frame.bytes_per_pixel + c;
-                frame.data[idx] = neighborhood[4]; // Median of 9 values
-            }
-        }
-    }
-
-    return true;
-}
-
-bool BinarizeImage(CaptureFrame& frame, int threshold) {
-    if (!frame.IsValid()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < frame.data.size(); ++i) {
-        frame.data[i] = (frame.data[i] >= threshold) ? 255 : 0;
-    }
-
-    return true;
-}
-
-std::string CleanExtractedText(const std::string& text) {
-    std::string cleaned = text;
-    
-    // Remove extra whitespace
-    cleaned = std::regex_replace(cleaned, std::regex("\\s+"), " ");
-    
-    // Remove non-printable characters except newlines and tabs
-    cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(),
-                                [](char c) {
-                                    return !std::isprint(c) && c != '\n' && c != '\t';
-                                }), cleaned.end());
-    
-    // Trim leading/trailing whitespace
-    size_t start = cleaned.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) {
-        return "";
-    }
-    size_t end = cleaned.find_last_not_of(" \t\n\r");
-    
-    return cleaned.substr(start, end - start + 1);
-}
-
-std::vector<std::string> SplitIntoLines(const std::string& text) {
-    std::vector<std::string> lines;
-    std::istringstream stream(text);
-    std::string line;
-    
-    while (std::getline(stream, line)) {
-        if (!line.empty()) {
-            lines.push_back(CleanExtractedText(line));
-        }
-    }
-    
-    return lines;
-}
-
-std::vector<std::string> ExtractWords(const std::string& text) {
-    std::vector<std::string> words;
-    std::regex word_regex(R"(\b\w+\b)");
-    std::sregex_iterator iter(text.begin(), text.end(), word_regex);
-    std::sregex_iterator end;
-    
-    for (; iter != end; ++iter) {
-        words.push_back(iter->str());
-    }
-    
-    return words;
-}
-
-bool IsTextMeaningful(const std::string& text, float min_ratio) {
-    if (text.empty()) {
-        return false;
-    }
-    
-    int alphanumeric_count = 0;
-    for (char c : text) {
-        if (std::isalnum(c)) {
-            alphanumeric_count++;
-        }
-    }
-    
-    float ratio = static_cast<float>(alphanumeric_count) / text.length();
-    return ratio >= min_ratio;
-}
-
-std::string DetectLanguage(const std::string& text) {
-    // Simple heuristic language detection
-    if (text.empty()) {
-        return "unknown";
-    }
-    
-    // Count character types
-    int ascii_count = 0;
-    int chinese_count = 0;
-    int cyrillic_count = 0;
-    
-    for (char c : text) {
-        if (static_cast<unsigned char>(c) < 128) {
-            ascii_count++;
-        } else {
-            // This is a simplified check - proper Unicode handling would be better
-            unsigned char uc = static_cast<unsigned char>(c);
-            if (uc >= 0xE4 && uc <= 0xE9) { // Rough CJK range
-                chinese_count++;
-            } else if (uc >= 0xD0 && uc <= 0xDF) { // Rough Cyrillic range
-                cyrillic_count++;
-            }
-        }
-    }
-    
-    if (chinese_count > ascii_count * 0.1) {
-        return "chi_sim";
-    } else if (cyrillic_count > ascii_count * 0.1) {
-        return "rus";
-    }
-    
-    return "eng";
-}
-
-bool IsLikelyCode(const std::string& text) {
-    // Simple heuristics for code detection
-    std::regex code_patterns(R"(\{|\}|;|->|=>|==|!=|\+\+|--|#include|function|class|if\s*\(|for\s*\(|while\s*\()");
-    return std::regex_search(text, code_patterns);
-}
-
-bool IsLikelyEmail(const std::string& text) {
-    std::regex email_pattern(R"(\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)");
-    return std::regex_search(text, email_pattern);
-}
-
-bool IsLikelyURL(const std::string& text) {
-    std::regex url_pattern(R"(https?://[^\s]+)");
-    return std::regex_search(text, url_pattern);
-}
-
-} // namespace ocr_utils
 
 } // namespace work_assistant
