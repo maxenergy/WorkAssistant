@@ -67,10 +67,6 @@ WindowInfo X11WindowMonitor::GetActiveWindow() const {
     return info;
 }
 
-void X11WindowMonitor::SetEventCallback(const WindowEventCallback& callback) {
-    m_eventCallback = callback;
-}
-
 bool X11WindowMonitor::IsMonitoring() const {
     return m_monitoring;
 }

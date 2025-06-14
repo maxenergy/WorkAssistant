@@ -73,7 +73,7 @@ ApiResponse GetProductivitySummary(const std::chrono::system_clock::time_point& 
             int type_val = static_cast<int>(report.at("dominant_content_type"));
             ContentType dominant_type = static_cast<ContentType>(type_val);
             json << ",";
-            json << "  \"dominant_content_type\": \"" << ai_utils::ContentTypeToString(dominant_type) << "\"";
+            json << "  \"dominant_content_type\": " << static_cast<int>(dominant_type) << "";
         }
         
         json << "},";
@@ -154,8 +154,8 @@ ApiResponse GetActivityTimeline(const std::chrono::system_clock::time_point& sta
             json << "\"timestamp\": \"" << storage_utils::FormatTimestamp(activity.timestamp) << "\",";
             json << "\"application\": \"" << web_utils::EscapeJsonString(activity.application_name) << "\",";
             json << "\"window_title\": \"" << web_utils::EscapeJsonString(activity.window_title) << "\",";
-            json << "\"content_type\": \"" << ai_utils::ContentTypeToString(activity.content_type) << "\",";
-            json << "\"work_category\": \"" << ai_utils::WorkCategoryToString(activity.work_category) << "\",";
+            json << "\"content_type\": " << static_cast<int>(activity.content_type) << ",";
+            json << "\"work_category\": " << static_cast<int>(activity.work_category) << ",";
             json << "\"is_productive\": " << (activity.is_productive ? "true" : "false") << ",";
             json << "\"is_focused\": " << (activity.is_focused_work ? "true" : "false") << ",";
             json << "\"confidence\": " << std::fixed << std::setprecision(2) << activity.ai_confidence << ",";
@@ -274,7 +274,7 @@ ApiResponse SearchContent(const std::string& query, int max_results,
             json << "\"timestamp\": \"" << storage_utils::FormatTimestamp(result.timestamp) << "\",";
             json << "\"application\": \"" << web_utils::EscapeJsonString(result.application_name) << "\",";
             json << "\"window_title\": \"" << web_utils::EscapeJsonString(result.window_title) << "\",";
-            json << "\"content_type\": \"" << ai_utils::ContentTypeToString(result.content_type) << "\",";
+            json << "\"content_type\": " << static_cast<int>(result.content_type) << ",";
             
             // Truncate extracted text for search results
             std::string text = result.extracted_text;

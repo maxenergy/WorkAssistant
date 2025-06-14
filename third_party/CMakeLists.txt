@@ -175,9 +175,51 @@ message(STATUS "PaddlePaddle will be installed to: ${PADDLE_ROOT}")
 message(STATUS "PaddlePaddle include dir: ${PADDLE_INC_DIR}")
 message(STATUS "PaddlePaddle library dir: ${PADDLE_LIB_DIR}")
 
+# ============================================
+# llama.cpp (for MiniCPM-V support)
+# ============================================
+
+FetchContent_Declare(
+    llama_cpp
+    GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
+    GIT_TAG b3671  # Use stable tag
+    GIT_SHALLOW TRUE
+)
+
+# llama.cpp build options
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "Build llama tests")
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "Build llama examples")
+set(LLAMA_BUILD_SERVER OFF CACHE BOOL "Build llama server")
+
+# Enable GPU support if CUDA is available
+if(CUDA_FOUND)
+    set(LLAMA_CUBLAS ON CACHE BOOL "Enable cuBLAS")
+    message(STATUS "Enabling CUDA support for llama.cpp")
+else()
+    set(LLAMA_CUBLAS OFF CACHE BOOL "Disable cuBLAS")
+    message(STATUS "Building llama.cpp with CPU-only support")
+endif()
+
+# Metal support for Apple platforms
+if(APPLE)
+    set(LLAMA_METAL ON CACHE BOOL "Enable Metal")
+endif()
+
+FetchContent_MakeAvailable(llama_cpp)
+
+# Create interface library for llama.cpp
+add_library(llama_inference INTERFACE)
+target_link_libraries(llama_inference INTERFACE llama)
+target_include_directories(llama_inference INTERFACE ${llama_cpp_SOURCE_DIR})
+
+# Export for parent scope
+set(LLAMA_CPP_DIR ${llama_cpp_SOURCE_DIR} PARENT_SCOPE)
+
+message(STATUS "llama.cpp configured successfully")
+message(STATUS "llama.cpp source dir: ${llama_cpp_SOURCE_DIR}")
+
 # Future third party integrations:
 # - screen_capture_lite
-# - llama.cpp  
 # - tesseract
 # - libsodium
 # - drogon

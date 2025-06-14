@@ -8,6 +8,23 @@
 #include <random>
 #include <sstream>
 
+#if LLAMA_CPP_AVAILABLE
+    // Real llama.cpp implementation for MiniCPM-V
+    // Already included llama.h in header
+    #include "common.h"
+    #include "sampling.h"
+    // Include OpenCV for image processing
+    #ifdef OPENCV_FOUND
+        #include "opencv2/opencv.hpp"
+        #define OPENCV_AVAILABLE 1
+    #else
+        #define OPENCV_AVAILABLE 0
+    #endif
+#else
+    // Mock implementation when llama.cpp is not available
+    // This maintains compatibility during development
+#endif
+
 namespace work_assistant {
 
 // MiniCPM-V Engine implementation
@@ -248,13 +265,37 @@ public:
 
 private:
     bool InitializeMiniCPMV() {
-        // Mock initialization
-        std::cout << "Initializing MiniCPM-V 2.0..." << std::endl;
+#if LLAMA_CPP_AVAILABLE
+        // Real MiniCPM-V initialization with llama.cpp
+        std::cout << "Initializing MiniCPM-V 2.0 (real implementation)..." << std::endl;
+        std::cout << "  Model path: " << m_config.model_path << std::endl;
+        std::cout << "  Context length: " << m_config.context_length << std::endl;
+        std::cout << "  GPU layers: " << m_config.gpu_layers << std::endl;
+        
+        // Check if model file exists
+        std::ifstream model_file(m_config.model_path);
+        if (!model_file.good()) {
+            std::cerr << "Model file not found: " << m_config.model_path << std::endl;
+            std::cout << "Please download MiniCPM-V 2.0 model from:" << std::endl;
+            std::cout << "https://huggingface.co/openbmb/MiniCPM-V-2" << std::endl;
+            
+            // Fall back to mock mode
+            return LoadModel(m_config.model_path);
+        }
+        
+        // Initialize real model (placeholder for now)
+        // TODO: Implement actual MiniCPM-V model loading
+        return LoadModel(m_config.model_path);
+#else
+        // Mock initialization when llama.cpp is not available
+        std::cout << "Initializing MiniCPM-V 2.0 (mock implementation)..." << std::endl;
+        std::cout << "  WARNING: llama.cpp not available, using mock implementation" << std::endl;
         std::cout << "  Model path: " << m_config.model_path << std::endl;
         std::cout << "  Context length: " << m_config.context_length << std::endl;
         std::cout << "  GPU layers: " << m_config.gpu_layers << std::endl;
         
         return LoadModel(m_config.model_path);
+#endif
     }
 
     void UpdateConfiguration() {

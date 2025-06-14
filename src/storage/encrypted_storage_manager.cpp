@@ -1,4 +1,5 @@
 #include "storage_engine.h"
+#include "common_types.h"
 #include "ocr_engine.h"
 #include "ai_engine.h"
 #include <iostream>

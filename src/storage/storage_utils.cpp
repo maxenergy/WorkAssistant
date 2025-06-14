@@ -1,4 +1,5 @@
 #include "storage_engine.h"
+#include "common_types.h"
 #include "ocr_engine.h"
 #include "ai_engine.h"
 #include <iostream>
@@ -122,8 +123,8 @@ std::string SerializeToJson(const ContentAnalysisRecord& record) {
     json << "  \"application_name\": \"" << record.application_name << "\",\n";
     json << "  \"extracted_text\": \"" << record.extracted_text << "\",\n";
     json << "  \"ocr_confidence\": " << record.ocr_confidence << ",\n";
-    json << "  \"content_type\": \"" << ai_utils::ContentTypeToString(record.content_type) << "\",\n";
-    json << "  \"work_category\": \"" << ai_utils::WorkCategoryToString(record.work_category) << "\",\n";
+    json << "  \"content_type\": " << static_cast<int>(record.content_type) << ",\n";
+    json << "  \"work_category\": " << static_cast<int>(record.work_category) << ",\n";
     json << "  \"priority\": " << static_cast<int>(record.priority) << ",\n";
     json << "  \"is_productive\": " << (record.is_productive ? "true" : "false") << ",\n";
     json << "  \"is_focused_work\": " << (record.is_focused_work ? "true" : "false") << ",\n";
@@ -178,8 +179,8 @@ ContentAnalysisRecord DeserializeFromJson(const std::string& json) {
         record.application_name = find_value("application_name");
         record.extracted_text = find_value("extracted_text");
         record.ocr_confidence = std::stof(find_value("ocr_confidence"));
-        record.content_type = ai_utils::StringToContentType(find_value("content_type"));
-        record.work_category = ai_utils::StringToWorkCategory(find_value("work_category"));
+        record.content_type = static_cast<ContentType>(std::stoi(find_value("content_type")));
+        record.work_category = static_cast<WorkCategory>(std::stoi(find_value("work_category")));
         record.priority = static_cast<ActivityPriority>(std::stoi(find_value("priority")));
         record.is_productive = (find_value("is_productive") == "true");
         record.is_focused_work = (find_value("is_focused_work") == "true");

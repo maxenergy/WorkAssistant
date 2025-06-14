@@ -1,6 +1,7 @@
 #pragma once
 
 #include "screen_capture.h"
+#include "common_types.h"
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <memory>
@@ -19,7 +20,7 @@ public:
     std::vector<MonitorInfo> GetMonitors() const override;
     bool CaptureDesktop(CaptureFrame& frame) override;
     bool CaptureMonitor(int monitorId, CaptureFrame& frame) override;
-    bool CaptureWindow(uint64_t windowHandle, CaptureFrame& frame) override;
+    bool CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame) override;
     bool CaptureRegion(int x, int y, int width, int height, CaptureFrame& frame) override;
 
     bool SupportsHardwareAcceleration() const override;

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <thread>
 #include <mutex>
+#include <set>
 
 #ifdef WEB_ENABLED
 #include <drogon/drogon.h>
@@ -256,8 +257,8 @@ public:
         
         std::ostringstream json;
         json << "{";
-        json << "\"content_type\": \"" << ai_utils::ContentTypeToString(analysis.content_type) << "\",";
-        json << "\"work_category\": \"" << ai_utils::WorkCategoryToString(analysis.work_category) << "\",";
+        json << "\"content_type\": " << static_cast<int>(analysis.content_type) << ",";
+        json << "\"work_category\": " << static_cast<int>(analysis.work_category) << ",";
         json << "\"is_productive\": " << (analysis.is_productive ? "true" : "false") << ",";
         json << "\"confidence\": " << analysis.classification_confidence << ",";
         json << "\"application\": \"" << web_utils::EscapeJsonString(analysis.application) << "\"";

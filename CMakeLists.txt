@@ -62,6 +62,7 @@ target_link_libraries(work_study_assistant
     ${PLATFORM_LIBS}
     paddle_inference
     opencv_inference
+    llama_inference
 )
 
 # Install targets

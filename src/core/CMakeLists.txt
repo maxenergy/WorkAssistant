@@ -7,6 +7,7 @@ set(CORE_SOURCES
     ocr_utils.cpp
     paddle_ocr_engine.cpp
     minicpm_v_engine.cpp
+    minicpm_v_model.cpp
     tesseract_engine.cpp
 )
 
@@ -33,4 +34,5 @@ target_link_libraries(core_lib
     ${CMAKE_THREAD_LIBS_INIT}
     paddle_inference
     opencv_inference
+    llama_inference
 )

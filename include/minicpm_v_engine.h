@@ -6,6 +6,15 @@
 #include <string>
 #include <vector>
 
+// llama.cpp availability check  
+#ifdef LLAMA_CPP_DIR
+    // Include llama.cpp headers when available
+    #include "llama.h"
+    #define LLAMA_CPP_AVAILABLE 1
+#else
+    #define LLAMA_CPP_AVAILABLE 0
+#endif
+
 namespace work_assistant {
 
 // MiniCPM-V model configuration

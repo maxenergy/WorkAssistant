@@ -1,4 +1,5 @@
 #include "daemon_service.h"
+#include "application.h"
 #include <iostream>
 #include <fstream>
 #include <csignal>

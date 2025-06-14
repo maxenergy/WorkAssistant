@@ -5,6 +5,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 
 using namespace work_assistant;
 

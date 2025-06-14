@@ -1,4 +1,5 @@
 #include "linux_screen_capture.h"
+#include "common_types.h"
 #include <iostream>
 #include <chrono>
 #include <cstring>
@@ -98,12 +99,12 @@ bool LinuxScreenCapture::CaptureMonitor(int monitorId, CaptureFrame& frame) {
     return CaptureDesktop(frame);
 }
 
-bool LinuxScreenCapture::CaptureWindow(uint64_t windowHandle, CaptureFrame& frame) {
+bool LinuxScreenCapture::CaptureWindow(WindowHandle windowHandle, CaptureFrame& frame) {
     if (!m_initialized) {
         return false;
     }
 
-    Window window = static_cast<Window>(windowHandle);
+    Window window = reinterpret_cast<Window>(windowHandle);
     
     // Get window geometry
     Window root;

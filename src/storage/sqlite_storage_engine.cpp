@@ -1,4 +1,5 @@
 #include "storage_engine.h"
+#include "common_types.h"
 #include "ocr_engine.h"
 #include "ai_engine.h"
 #include <iostream>
@@ -733,8 +734,8 @@ DataRecord ContentAnalysisRecord::ToDataRecord() const {
     record.session_id = session_id;
     record.metadata["window_title"] = window_title;
     record.metadata["application_name"] = application_name;
-    record.metadata["content_type"] = ai_utils::ContentTypeToString(content_type);
-    record.metadata["work_category"] = ai_utils::WorkCategoryToString(work_category);
+    record.metadata["content_type"] = std::to_string(static_cast<int>(content_type));
+    record.metadata["work_category"] = std::to_string(static_cast<int>(work_category));
     record.metadata["is_productive"] = is_productive ? "true" : "false";
     
     // Serialize to JSON and store as data

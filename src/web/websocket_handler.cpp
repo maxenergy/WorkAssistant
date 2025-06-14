@@ -5,6 +5,7 @@
 #include <mutex>
 #include <unordered_set>
 #include <queue>
+#include <iomanip>
 
 #ifdef WEB_ENABLED
 #include <drogon/WebSocketController.h>
@@ -372,8 +373,8 @@ WSMessage CreateAIAnalysisMessage(const ContentAnalysis& analysis) {
     
     std::ostringstream data;
     data << "{";
-    data << "\"content_type\":\"" << ai_utils::ContentTypeToString(analysis.content_type) << "\",";
-    data << "\"work_category\":\"" << ai_utils::WorkCategoryToString(analysis.work_category) << "\",";
+    data << "\"content_type\":" << static_cast<int>(analysis.content_type) << ",";
+    data << "\"work_category\":" << static_cast<int>(analysis.work_category) << ",";
     data << "\"is_productive\":" << (analysis.is_productive ? "true" : "false") << ",";
     data << "\"is_focused_work\":" << (analysis.is_focused_work ? "true" : "false") << ",";
     data << "\"confidence\":" << analysis.classification_confidence << ",";
