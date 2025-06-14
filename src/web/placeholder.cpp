@@ -1,0 +1,1 @@
+// Web module placeholder - will be implemented in future iterations

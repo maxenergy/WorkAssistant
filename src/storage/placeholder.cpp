@@ -1,0 +1,1 @@
+// Storage module placeholder - will be implemented in future iterations

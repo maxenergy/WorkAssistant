@@ -1,0 +1,145 @@
+# Build directories
+build/
+bin/
+lib/
+*.so
+*.dll
+*.dylib
+*.a
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+*.cmake
+
+# Visual Studio / MSBuild
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.aps
+*.pch
+*.vspscc
+*_i.c
+*_p.c
+*.ncb
+*.tlb
+*.tlh
+*.bak
+*.cache
+*.ilk
+*.log
+*.sbr
+*.scc
+[Bb]in
+[Dd]ebug*/
+[Rr]elease*/
+Ankh.NoLoad
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# Qt
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+Makefile*
+*build-*
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Libraries
+*.lib
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.so*
+*.dll
+*.dylib
+
+# Archives
+*.a
+*.ar
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.kate-swp
+.kdev4/
+.project
+.cproject
+.settings/
+
+# Data and logs
+*.log
+logs/
+data/screenshots/
+data/captures/
+data/temp/
+
+# Models and large files
+models/
+*.bin
+*.gguf
+*.safetensors
+
+# Configuration files with secrets
+config/secrets.json
+.env
+*.key
+*.pem
+
+# Third party downloads
+third_party/downloads/
+third_party/build/
+
+# Test outputs
+test_results/
+coverage/
+*.gcov
+*.gcda
+*.gcno
