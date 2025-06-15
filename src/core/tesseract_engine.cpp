@@ -1,4 +1,6 @@
 #include "ocr_engine.h"
+#include "paddle_ocr_engine.h"
+#include "minicpm_v_engine.h"
 #include <iostream>
 #include <vector>
 #include <future>
@@ -163,19 +165,11 @@ std::unique_ptr<IOCREngine> OCREngineFactory::Create(EngineType type) {
         case EngineType::TESSERACT:
             return std::make_unique<TesseractEngine>();
         
-        case EngineType::WINDOWS_OCR:
-#ifdef _WIN32
-            // Future implementation for Windows.Media.Ocr
-            std::cerr << "Windows OCR not implemented yet" << std::endl;
-            return nullptr;
-#else
-            std::cerr << "Windows OCR not available on this platform" << std::endl;
-            return nullptr;
-#endif
+        case EngineType::PADDLE_OCR:
+            return std::make_unique<PaddleOCREngine>();
         
-        case EngineType::CLOUD_VISION:
-            std::cerr << "Cloud Vision OCR not implemented yet" << std::endl;
-            return nullptr;
+        case EngineType::MINICPM_V:
+            return std::make_unique<MiniCPMVEngine>();
         
         default:
             return nullptr;

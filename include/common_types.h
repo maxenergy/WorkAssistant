@@ -84,17 +84,30 @@ enum class ActivityPriority {
     URGENT = 6
 };
 
+// Image format enumeration
+enum class ImageFormat {
+    UNKNOWN = 0,
+    RGB = 1,
+    RGBA = 2,
+    BGR = 3,
+    BGRA = 4,
+    GRAY = 5
+};
+
 // Screen capture types
 struct CaptureFrame {
     std::vector<uint8_t> data;
     int width = 0;
     int height = 0;
     int bytes_per_pixel = 4; // RGBA by default
+    int stride = 0; // Bytes per row
+    ImageFormat format = ImageFormat::RGBA;
     std::chrono::system_clock::time_point timestamp;
     
     // Utility methods
     size_t GetDataSize() const {
-        return static_cast<size_t>(width * height * bytes_per_pixel);
+        int actual_stride = (stride > 0) ? stride : width * bytes_per_pixel;
+        return static_cast<size_t>(height * actual_stride);
     }
     
     bool IsValid() const {

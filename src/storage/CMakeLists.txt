@@ -2,10 +2,14 @@ set(STORAGE_SOURCES
     sqlite_storage_engine.cpp
     encrypted_storage_manager.cpp
     storage_utils.cpp
+    directory_manager.cpp
+    config_manager.cpp
 )
 
 set(STORAGE_HEADERS
     ${CMAKE_SOURCE_DIR}/include/storage_engine.h
+    ${CMAKE_SOURCE_DIR}/include/directory_manager.h
+    ${CMAKE_SOURCE_DIR}/include/config_manager.h
 )
 
 add_library(storage_lib STATIC

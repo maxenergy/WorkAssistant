@@ -1,20 +1,22 @@
 #include "paddle_ocr_engine.h"
 #include "common_types.h"
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include <thread>
 #include <algorithm>
 #include <regex>
 #include <random>
 
-#if PADDLE_AVAILABLE
+#ifdef PADDLE_INFERENCE_FOUND
     // Real PaddlePaddle implementation
-    // Include PaddlePaddle headers here when available
-    // #include "paddle_inference_api.h"
-    // #include "opencv2/opencv.hpp"
+    #include <paddle_c_api.h>
+    #include <opencv2/opencv.hpp>
+    #define PADDLE_AVAILABLE 1
 #else
     // Mock implementation when PaddlePaddle is not available
     // This maintains compatibility during development
+    #define PADDLE_AVAILABLE 0
 #endif
 
 namespace work_assistant {

@@ -126,6 +126,11 @@ models/
 *.bin
 *.gguf
 *.safetensors
+*.onnx
+*.pt
+*.pth
+*.h5
+*.tflite
 
 # Configuration files with secrets
 config/secrets.json
@@ -143,3 +148,16 @@ coverage/
 *.gcov
 *.gcda
 *.gcno
+
+# Additional temporary files and executables
+simple_*
+test_*
+!test_*.cpp
+!test_*.h
+url.txt
+*.url
+
+# Third party builds
+third_party/*/build/
+third_party/install/
+_deps/

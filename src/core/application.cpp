@@ -1,5 +1,6 @@
 #include "application.h"
 #include "event_manager.h"
+#include "directory_manager.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -27,6 +28,14 @@ bool Application::Initialize() {
     }
 
     std::cout << "Initializing Work Study Assistant..." << std::endl;
+    
+    // Initialize directory structure first
+    if (!DirectoryManager::InitializeDirectories()) {
+        std::cerr << "Failed to initialize directory structure" << std::endl;
+        // Don't fail completely, but warn user
+    } else {
+        std::cout << "Directory structure initialized successfully" << std::endl;
+    }
 
     // Initialize window monitor
     m_windowMonitor = WindowMonitorFactory::Create();
@@ -50,7 +59,7 @@ bool Application::Initialize() {
 
     // Initialize OCR manager
     m_ocrManager = std::make_unique<OCRManager>();
-    if (!m_ocrManager->Initialize()) {
+    if (!m_ocrManager->Initialize(OCREngineFactory::EngineType::AUTO_SELECT)) {
         std::cerr << "Failed to initialize OCR manager" << std::endl;
         // Don't fail completely if OCR fails
         m_ocrManager.reset();
@@ -69,7 +78,7 @@ bool Application::Initialize() {
     // Initialize encrypted storage manager
     m_storageManager = std::make_shared<EncryptedStorageManager>();
     StorageConfig storage_config;
-    storage_config.storage_path = "data";
+    storage_config.storage_path = DirectoryManager::GetDataDirectory();
     storage_config.database_name = "work_assistant.db";
     storage_config.master_password = "default_password_2024"; // In production, get from user
     storage_config.security_level = SecurityLevel::STANDARD;
@@ -88,7 +97,7 @@ bool Application::Initialize() {
     WebServerConfig web_config;
     web_config.host = "127.0.0.1";
     web_config.port = 8080;
-    web_config.static_files_path = "web/static";
+    web_config.static_files_path = DirectoryManager::JoinPath(DirectoryManager::GetDataDirectory(), "web/static");
     web_config.enable_cors = true;
     web_config.enable_websocket = true;
     

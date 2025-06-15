@@ -9,6 +9,14 @@
 
 namespace work_assistant {
 
+// OCR processing modes
+enum class OCRMode {
+    FAST,           // 快速模式：PaddleOCR v4
+    ACCURATE,       // 高精度模式：MiniCPM-V 2.0
+    MULTIMODAL,     // 多模态理解：MiniCPM-V 2.0 + 问答
+    AUTO            // 智能选择
+};
+
 // OCR preprocessing options
 struct OCROptions {
     // General options
@@ -62,14 +70,6 @@ public:
     // Performance info
     virtual bool IsInitialized() const = 0;
     virtual std::string GetEngineInfo() const = 0;
-};
-
-// OCR processing modes
-enum class OCRMode {
-    FAST,           // 快速模式：PaddleOCR v4
-    ACCURATE,       // 高精度模式：MiniCPM-V 2.0
-    MULTIMODAL,     // 多模态理解：MiniCPM-V 2.0 + 问答
-    AUTO            // 智能选择
 };
 
 // OCR engine factory

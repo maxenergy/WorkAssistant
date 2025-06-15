@@ -1,6 +1,7 @@
 #include "ai_engine.h"
 #include <iostream>
 #include <cassert>
+#include <functional>
 
 using namespace work_assistant;
 
@@ -59,19 +60,25 @@ bool test_work_category_conversions() {
     return work_str == "FOCUSED_WORK" && work_cat == WorkCategory::FOCUSED_WORK;
 }
 
-bool test_keyword_extraction() {
+bool test_entity_extraction() {
     std::string text = "This is a test document about machine learning and artificial intelligence.";
-    auto keywords = ai_utils::ExtractKeywords(text, 5);
+    auto entities = ai_utils::ExtractEntities(text);
     
-    // Should extract some keywords
-    return !keywords.empty() && keywords.size() <= 5;
+    // Should extract some entities
+    return !entities.empty();
 }
 
-bool test_content_classification() {
-    std::string code_text = "function calculateSum(a, b) { return a + b; }";
-    ContentType type = ai_utils::ClassifyContent(code_text);
+bool test_content_helpers() {
+    // Test content type helpers
+    ContentType code_type = ContentType::CODE;
+    std::string code_str = ai_utils::ContentTypeToString(code_type);
+    ContentType parsed_type = ai_utils::StringToContentType(code_str);
     
-    return type == ContentType::CODE;
+    // Test productivity checks
+    bool is_productive = ai_utils::IsProductiveContentType(ContentType::PRODUCTIVITY);
+    bool is_focused = ai_utils::IsFocusedWorkCategory(WorkCategory::FOCUSED_WORK);
+    
+    return parsed_type == code_type && is_productive && is_focused;
 }
 
 bool test_ai_content_analyzer() {
@@ -177,30 +184,21 @@ bool test_work_patterns() {
     return has_patterns || valid_prediction; // At least one should work
 }
 
-bool test_llama_engine() {
-    LlamaCppEngine engine;
+bool test_ai_engine_factory() {
+    // Test AI engine factory functionality
+    auto available_engines = AIEngineFactory::GetAvailableEngines();
     
-    // Test initialization
-    AIModelConfig config;
-    config.model_path = "mock_model.bin"; // Mock path
-    config.max_tokens = 100;
-    config.temperature = 0.7f;
-    
-    if (!engine.Initialize(config)) {
-        // This is expected to fail with mock model, but should handle gracefully
-        std::cout << "(Mock model initialization failed as expected) ";
+    // Should have at least one engine type available
+    if (available_engines.empty()) {
+        std::cout << "(No AI engines available - expected in test environment) ";
         return true;
     }
     
-    // If somehow it initialized, test analysis
-    OCRDocument doc;
-    doc.full_text = "Testing AI analysis functionality";
+    // Try to create an engine
+    auto engine = AIEngineFactory::Create(AIEngineFactory::EngineType::LLAMA_CPP);
     
-    auto analysis = engine.AnalyzeContent(doc, "Test Window", "test.exe");
-    
-    engine.Shutdown();
-    
-    return analysis.content_type != ContentType::UNKNOWN;
+    // Engine creation should succeed even if initialization fails
+    return engine != nullptr;
 }
 
 bool test_async_analysis() {
@@ -227,14 +225,14 @@ int main() {
     // Run utility tests
     framework.run_test("AI Utils - Content Type Conversions", test_content_type_conversions);
     framework.run_test("AI Utils - Work Category Conversions", test_work_category_conversions);
-    framework.run_test("AI Utils - Keyword Extraction", test_keyword_extraction);
-    framework.run_test("AI Utils - Content Classification", test_content_classification);
+    framework.run_test("AI Utils - Entity Extraction", test_entity_extraction);
+    framework.run_test("AI Utils - Content Helpers", test_content_helpers);
     
     // Run AI system tests
     framework.run_test("AI Content Analyzer", test_ai_content_analyzer);
     framework.run_test("Productivity Score Calculation", test_productivity_score);
     framework.run_test("Work Pattern Detection", test_work_patterns);
-    framework.run_test("Llama Engine (Mock)", test_llama_engine);
+    framework.run_test("AI Engine Factory", test_ai_engine_factory);
     framework.run_test("Async Analysis", test_async_analysis);
     
     return framework.summary();

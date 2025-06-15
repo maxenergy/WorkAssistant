@@ -3,637 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Study Assistant</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            min-height: 100vh;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-        
-        .header h1 {
-            color: #2c3e50;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 300;
-        }
-        
-        .header p {
-            color: #7f8c8d;
-            font-size: 1.2em;
-        }
-        
-        .status-bar {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        }
-        
-        .status-item {
-            text-align: center;
-        }
-        
-        .status-item .label {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-        
-        .status-item .value {
-            font-size: 1.5em;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-        
-        .status-online {
-            color: #27ae60 !important;
-        }
-        
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .card h2 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            font-weight: 400;
-        }
-        
-        .productivity-score {
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .score-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            font-weight: 600;
-            color: white;
-            position: relative;
-        }
-        
-        .score-excellent { background: linear-gradient(135deg, #27ae60, #2ecc71); }
-        .score-good { background: linear-gradient(135deg, #f39c12, #e67e22); }
-        .score-fair { background: linear-gradient(135deg, #e67e22, #d35400); }
-        .score-poor { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-        
-        .activity-feed {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .activity-item {
-            padding: 15px;
-            border-left: 4px solid #3498db;
-            margin-bottom: 15px;
-            background: rgba(52, 152, 219, 0.1);
-            border-radius: 0 10px 10px 0;
-        }
-        
-        .activity-item.productive {
-            border-color: #27ae60;
-            background: rgba(39, 174, 96, 0.1);
-        }
-        
-        .activity-item.distraction {
-            border-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.1);
-        }
-        
-        .activity-time {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-        
-        .activity-content {
-            font-weight: 500;
-            color: #2c3e50;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            justify-content: center;
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(52, 152, 219, 0.3);
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
-        }
-        
-        .btn.secondary {
-            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-            box-shadow: 0 4px 16px rgba(149, 165, 166, 0.3);
-        }
-        
-        .ws-status {
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 500;
-        }
-        
-        .ws-connected {
-            background: rgba(39, 174, 96, 0.2);
-            color: #27ae60;
-        }
-        
-        .ws-disconnected {
-            background: rgba(231, 76, 60, 0.2);
-            color: #e74c3c;
-        }
-        
-        @media (max-width: 768px) {
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-            
-            .status-bar {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .controls {
-                flex-direction: column;
-            }
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <title>Work Assistant - Intelligent Productivity Monitor</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>🤖 Work Study Assistant</h1>
-            <p>Intelligent productivity tracking and analysis</p>
+            <h1>Work Assistant</h1>
+            <p>Intelligent Productivity Monitoring & Analysis</p>
         </div>
-        
+
+        <!-- Status Bar -->
         <div class="status-bar">
-            <div class="status-item">
-                <div class="label">System Status</div>
-                <div class="value status-online" id="system-status">Online</div>
-            </div>
-            <div class="status-item">
-                <div class="label">WebSocket</div>
-                <div class="ws-status ws-disconnected" id="ws-status">Disconnected</div>
-            </div>
-            <div class="status-item">
-                <div class="label">Activities Today</div>
-                <div class="value" id="activities-count">0</div>
-            </div>
-            <div class="status-item">
-                <div class="label">Session Time</div>
-                <div class="value" id="session-time">0h 0m</div>
-            </div>
-        </div>
-        
-        <div class="dashboard">
-            <div class="card">
-                <h2>📊 Productivity Score</h2>
-                <div class="productivity-score">
-                    <div class="score-circle score-fair" id="score-circle">
-                        <span id="score-value">65</span>
-                    </div>
-                    <div id="score-level">Good</div>
-                    <div style="color: #7f8c8d; margin-top: 10px;" id="score-recommendation">
-                        Keep up the focused work sessions!
-                    </div>
-                </div>
+            <div class="connection-status">
+                <span>Status:</span>
+                <span id="connection-status" class="status-disconnected">Connecting...</span>
             </div>
             
+            <div class="controls">
+                <select id="ocr-mode">
+                    <option value="auto">Auto OCR</option>
+                    <option value="fast">Fast OCR</option>
+                    <option value="accurate">Accurate OCR</option>
+                    <option value="multimodal">Multimodal</option>
+                </select>
+                
+                <button id="refresh-btn">Refresh</button>
+                <button id="export-data-btn">Export Data</button>
+                <button id="clear-data-btn" class="btn-danger">Clear Data</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard">
+            <!-- OCR Statistics -->
             <div class="card">
-                <h2>⚡ Live Activity Feed</h2>
-                <div class="activity-feed" id="activity-feed">
-                    <div class="activity-item">
-                        <div class="activity-time">Waiting for data...</div>
-                        <div class="activity-content">Connect to start monitoring</div>
+                <div class="card-header">OCR Statistics</div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span id="total-processed" class="stat-value">0</span>
+                            <div class="stat-label">Total Processed</div>
+                        </div>
+                        <div class="stat-item">
+                            <span id="successful-extractions" class="stat-value">0</span>
+                            <div class="stat-label">Successful</div>
+                        </div>
+                        <div class="stat-item">
+                            <span id="average-time" class="stat-value">0ms</span>
+                            <div class="stat-label">Avg Time</div>
+                        </div>
+                        <div class="stat-item">
+                            <span id="average-confidence" class="stat-value">0%</span>
+                            <div class="stat-label">Avg Confidence</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <h2>🎯 Quick Actions</h2>
-            <div class="controls">
-                <button class="btn" onclick="exportData()">
-                    <span id="export-text">📥 Export Data</span>
-                    <span id="export-loading" class="loading" style="display: none;"></span>
-                </button>
-                <button class="btn secondary" onclick="refreshData()">
-                    <span id="refresh-text">🔄 Refresh</span>
-                    <span id="refresh-loading" class="loading" style="display: none;"></span>
-                </button>
-                <button class="btn secondary" onclick="showSettings()">⚙️ Settings</button>
+
+            <!-- Application Status -->
+            <div class="card">
+                <div class="card-header">System Status</div>
+                <div class="card-body">
+                    <div id="app-status">
+                        <div><strong>OCR Engine:</strong> Loading...</div>
+                        <div><strong>AI Engine:</strong> Loading...</div>
+                        <div><strong>Storage:</strong> Loading...</div>
+                        <div><strong>Web Server:</strong> Running</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Window Events -->
+            <div class="card">
+                <div class="card-header">Window Events</div>
+                <div class="card-body">
+                    <div id="window-events" class="activity-list">
+                        <div class="empty-state">No window events yet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent OCR Results -->
+            <div class="card">
+                <div class="card-header">Recent OCR Results</div>
+                <div class="card-body">
+                    <div id="ocr-results" class="activity-list">
+                        <div class="empty-state">No OCR results yet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Analysis -->
+            <div class="card">
+                <div class="card-header">AI Content Analysis</div>
+                <div class="card-body">
+                    <div id="ai-analysis" class="activity-list">
+                        <div class="empty-state">No AI analysis yet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="card">
+                <div class="card-header">Recent Activities</div>
+                <div class="card-body">
+                    <div id="recent-activities" class="activity-list">
+                        <div class="empty-state">No activities recorded yet</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        class WorkAssistantDashboard {
-            constructor() {
-                this.wsConnection = null;
-                this.sessionStartTime = Date.now();
-                this.activities = [];
-                this.reconnectAttempts = 0;
-                this.maxReconnectAttempts = 5;
-                
-                this.init();
-            }
-            
-            init() {
-                this.updateSessionTime();
-                setInterval(() => this.updateSessionTime(), 60000); // Update every minute
-                
-                this.connectWebSocket();
-                this.loadInitialData();
-            }
-            
-            connectWebSocket() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/api/v1/ws`;
-                
-                try {
-                    this.wsConnection = new WebSocket(wsUrl);
-                    
-                    this.wsConnection.onopen = () => {
-                        console.log('WebSocket connected');
-                        this.updateWSStatus(true);
-                        this.reconnectAttempts = 0;
-                        
-                        // Send subscription message
-                        this.sendMessage({
-                            type: 'subscribe',
-                            subscriptions: ['window_events', 'ocr_results', 'ai_analysis', 'productivity_updates']
-                        });
-                    };
-                    
-                    this.wsConnection.onmessage = (event) => {
-                        this.handleWebSocketMessage(JSON.parse(event.data));
-                    };
-                    
-                    this.wsConnection.onclose = () => {
-                        console.log('WebSocket disconnected');
-                        this.updateWSStatus(false);
-                        this.attemptReconnect();
-                    };
-                    
-                    this.wsConnection.onerror = (error) => {
-                        console.error('WebSocket error:', error);
-                        this.updateWSStatus(false);
-                    };
-                    
-                } catch (error) {
-                    console.error('Failed to create WebSocket connection:', error);
-                    this.updateWSStatus(false);
-                }
-            }
-            
-            attemptReconnect() {
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-                    setTimeout(() => this.connectWebSocket(), 3000 * this.reconnectAttempts);
-                }
-            }
-            
-            sendMessage(message) {
-                if (this.wsConnection && this.wsConnection.readyState === WebSocket.OPEN) {
-                    this.wsConnection.send(JSON.stringify(message));
-                }
-            }
-            
-            handleWebSocketMessage(message) {
-                console.log('Received message:', message);
-                
-                switch (message.type) {
-                    case 0: // WINDOW_EVENT
-                        this.handleWindowEvent(message.data);
-                        break;
-                    case 1: // OCR_RESULT
-                        this.handleOCRResult(message.data);
-                        break;
-                    case 2: // AI_ANALYSIS
-                        this.handleAIAnalysis(message.data);
-                        break;
-                    case 3: // PRODUCTIVITY_UPDATE
-                        this.handleProductivityUpdate(message.data);
-                        break;
-                    case 4: // SYSTEM_STATUS
-                        this.handleSystemStatus(message.data);
-                        break;
-                }
-                
-                this.updateActivityCount();
-            }
-            
-            handleWindowEvent(data) {
-                if (typeof data === 'string') {
-                    data = JSON.parse(data);
-                }
-                
-                this.addActivity({
-                    type: 'window',
-                    time: new Date(),
-                    content: `${data.process_name} - ${data.window_title}`,
-                    productive: true
-                });
-            }
-            
-            handleOCRResult(data) {
-                if (typeof data === 'string') {
-                    data = JSON.parse(data);
-                }
-                
-                this.addActivity({
-                    type: 'ocr',
-                    time: new Date(),
-                    content: `OCR: ${data.text.substring(0, 50)}...`,
-                    productive: data.confidence > 0.7
-                });
-            }
-            
-            handleAIAnalysis(data) {
-                if (typeof data === 'string') {
-                    data = JSON.parse(data);
-                }
-                
-                this.addActivity({
-                    type: 'ai',
-                    time: new Date(),
-                    content: `${data.content_type} - ${data.work_category}`,
-                    productive: data.is_productive
-                });
-                
-                // Update productivity score if available
-                if (data.confidence) {
-                    this.updateProductivityScore(data.confidence * 100);
-                }
-            }
-            
-            handleProductivityUpdate(data) {
-                if (typeof data === 'string') {
-                    data = JSON.parse(data);
-                }
-                
-                this.updateProductivityScore(data.productivity_score);
-            }
-            
-            handleSystemStatus(data) {
-                if (typeof data === 'string') {
-                    data = JSON.parse(data);
-                }
-                
-                if (data.type === 'welcome') {
-                    console.log('Received welcome message:', data);
-                }
-            }
-            
-            addActivity(activity) {
-                this.activities.unshift(activity);
-                if (this.activities.length > 50) {
-                    this.activities = this.activities.slice(0, 50);
-                }
-                
-                this.updateActivityFeed();
-            }
-            
-            updateActivityFeed() {
-                const feed = document.getElementById('activity-feed');
-                
-                if (this.activities.length === 0) {
-                    feed.innerHTML = `
-                        <div class="activity-item">
-                            <div class="activity-time">Waiting for data...</div>
-                            <div class="activity-content">Connect to start monitoring</div>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                feed.innerHTML = this.activities.map(activity => {
-                    const className = activity.productive ? 'productive' : 'distraction';
-                    const time = activity.time.toLocaleTimeString();
-                    
-                    return `
-                        <div class="activity-item ${className}">
-                            <div class="activity-time">${time}</div>
-                            <div class="activity-content">${activity.content}</div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            updateProductivityScore(score) {
-                const scoreElement = document.getElementById('score-value');
-                const circleElement = document.getElementById('score-circle');
-                const levelElement = document.getElementById('score-level');
-                const recommendationElement = document.getElementById('score-recommendation');
-                
-                scoreElement.textContent = Math.round(score);
-                
-                // Update circle color based on score
-                circleElement.className = 'score-circle';
-                if (score >= 80) {
-                    circleElement.classList.add('score-excellent');
-                    levelElement.textContent = 'Excellent';
-                    recommendationElement.textContent = 'Outstanding productivity! Keep it up!';
-                } else if (score >= 60) {
-                    circleElement.classList.add('score-good');
-                    levelElement.textContent = 'Good';
-                    recommendationElement.textContent = 'Good work! Try to maintain focus.';
-                } else if (score >= 40) {
-                    circleElement.classList.add('score-fair');
-                    levelElement.textContent = 'Fair';
-                    recommendationElement.textContent = 'Room for improvement. Reduce distractions.';
-                } else {
-                    circleElement.classList.add('score-poor');
-                    levelElement.textContent = 'Poor';
-                    recommendationElement.textContent = 'Focus needed. Take a break and refocus.';
-                }
-            }
-            
-            updateSessionTime() {
-                const elapsed = Date.now() - this.sessionStartTime;
-                const hours = Math.floor(elapsed / (1000 * 60 * 60));
-                const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-                
-                document.getElementById('session-time').textContent = `${hours}h ${minutes}m`;
-            }
-            
-            updateActivityCount() {
-                document.getElementById('activities-count').textContent = this.activities.length;
-            }
-            
-            updateWSStatus(connected) {
-                const statusElement = document.getElementById('ws-status');
-                if (connected) {
-                    statusElement.className = 'ws-status ws-connected';
-                    statusElement.textContent = 'Connected';
-                } else {
-                    statusElement.className = 'ws-status ws-disconnected';
-                    statusElement.textContent = 'Disconnected';
-                }
-            }
-            
-            async loadInitialData() {
-                try {
-                    const response = await fetch('/api/v1/productivity/summary', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            start_time: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                            end_time: new Date().toISOString()
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.success && data.data) {
-                            const summary = JSON.parse(data.data);
-                            if (summary.productivity && summary.productivity.score !== undefined) {
-                                this.updateProductivityScore(summary.productivity.score);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to load initial data:', error);
-                }
-            }
-        }
-        
-        // Global functions for buttons
-        async function exportData() {
-            const button = document.getElementById('export-text');
-            const loading = document.getElementById('export-loading');
-            
-            button.style.display = 'none';
-            loading.style.display = 'inline-block';
-            
-            try {
-                const response = await fetch('/api/v1/export?format=json', {
-                    method: 'GET'
-                });
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `work_assistant_export_${new Date().toISOString().slice(0, 10)}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }
-            } catch (error) {
-                console.error('Export failed:', error);
-                alert('Export failed. Please try again.');
-            } finally {
-                button.style.display = 'inline';
-                loading.style.display = 'none';
-            }
-        }
-        
-        async function refreshData() {
-            const button = document.getElementById('refresh-text');
-            const loading = document.getElementById('refresh-loading');
-            
-            button.style.display = 'none';
-            loading.style.display = 'inline-block';
-            
-            try {
-                await dashboard.loadInitialData();
-            } catch (error) {
-                console.error('Refresh failed:', error);
-            } finally {
-                button.style.display = 'inline';
-                loading.style.display = 'none';
-            }
-        }
-        
-        function showSettings() {
-            alert('Settings panel coming soon!');
-        }
-        
-        // Initialize dashboard when page loads
-        let dashboard;
-        document.addEventListener('DOMContentLoaded', () => {
-            dashboard = new WorkAssistantDashboard();
-        });
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -18,7 +18,10 @@ namespace work_assistant {
 
 // Screen capture factory implementation
 std::unique_ptr<IScreenCapture> ScreenCaptureFactory::Create() {
-#ifdef _WIN32
+#ifdef SCREEN_CAPTURE_LITE_FOUND
+    // Prefer screen_capture_lite if available
+    return std::make_unique<ScreenCaptureLiteImpl>();
+#elif defined(_WIN32)
     return std::make_unique<Win32ScreenCapture>();
 #elif defined(__linux__)
     return std::make_unique<LinuxScreenCapture>();

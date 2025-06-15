@@ -5,11 +5,12 @@
 #include <thread>
 #include <sstream>
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
 
-// Note: This is a mock implementation since llama.cpp is not installed
-// In a real implementation, you would include llama.cpp headers:
-// #include "llama.h"
-// #include "common.h"
+// Real llama.cpp implementation
+#include "llama.h"
+#include "common/common.h"
 
 namespace work_assistant {
 
@@ -68,14 +69,16 @@ Content: "{text}"
 Context: "{title}" in "{app}")";
 }
 
-// Mock llama.cpp engine implementation
+// Real llama.cpp engine implementation
 class LlamaCppEngine : public IAIEngine {
 public:
     LlamaCppEngine() 
         : m_initialized(false)
         , m_model_loaded(false)
         , m_total_processed(0)
-        , m_total_processing_time(0.0) {
+        , m_total_processing_time(0.0)
+        , m_model(nullptr)
+        , m_context(nullptr) {
     }
 
     ~LlamaCppEngine() override {
@@ -89,14 +92,32 @@ public:
 
         m_config = config;
         
-        // In real implementation, initialize llama.cpp:
-        // llama_backend_init(false);
-        // m_model_params = llama_model_default_params();
-        // m_context_params = llama_context_default_params();
-        
-        std::cout << "Mock LLaMA Engine initialized" << std::endl;
-        m_initialized = true;
-        return true;
+        try {
+            // Initialize llama.cpp backend
+            llama_backend_init();
+            
+            // Set default parameters
+            m_model_params = llama_model_default_params();
+            m_context_params = llama_context_default_params();
+            
+            // Configure GPU usage
+            m_model_params.n_gpu_layers = config.gpu_layers;
+            m_model_params.main_gpu = 0;
+            
+            // Configure context
+            m_context_params.n_ctx = config.context_length;
+            m_context_params.n_batch = 512;
+            m_context_params.n_ubatch = 512;
+            m_context_params.n_threads = std::thread::hardware_concurrency();
+            m_context_params.n_threads_batch = std::thread::hardware_concurrency();
+            
+            std::cout << "LLaMA.cpp Engine initialized successfully" << std::endl;
+            m_initialized = true;
+            return true;
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to initialize LLaMA.cpp Engine: " << e.what() << std::endl;
+            return false;
+        }
     }
 
     void Shutdown() override {
@@ -106,8 +127,8 @@ public:
 
         UnloadModel();
         
-        // In real implementation:
-        // llama_backend_free();
+        // Free llama.cpp backend
+        llama_backend_free();
         
         m_initialized = false;
         std::cout << "LLaMA Engine shut down" << std::endl;
@@ -119,6 +140,7 @@ public:
 
     bool LoadModel(const std::string& model_path) override {
         if (!m_initialized) {
+            std::cerr << "Engine not initialized" << std::endl;
             return false;
         }
 
@@ -126,27 +148,52 @@ public:
             UnloadModel();
         }
 
-        // In real implementation:
-        // m_model = llama_load_model_from_file(model_path.c_str(), m_model_params);
-        // if (!m_model) {
-        //     std::cerr << "Failed to load model: " << model_path << std::endl;
-        //     return false;
-        // }
-        // m_context = llama_new_context_with_model(m_model, m_context_params);
-
-        // Mock implementation
-        m_model_info.name = "Qwen2.5-1.5B-Instruct";
-        m_model_info.path = model_path;
-        m_model_info.type = "gguf";
-        m_model_info.size_mb = 1024;  // 1GB
-        m_model_info.is_loaded = true;
-        m_model_info.supports_classification = true;
-        m_model_info.avg_tokens_per_second = 50.0f;
-        m_model_info.recommended_context = 2048;
-
-        m_model_loaded = true;
-        std::cout << "Mock model loaded: " << model_path << std::endl;
-        return true;
+        try {
+            std::cout << "Loading model: " << model_path << std::endl;
+            
+            // Load the model
+            m_model = llama_load_model_from_file(model_path.c_str(), m_model_params);
+            if (!m_model) {
+                std::cerr << "Failed to load model: " << model_path << std::endl;
+                return false;
+            }
+            
+            // Create context
+            m_context = llama_new_context_with_model(m_model, m_context_params);
+            if (!m_context) {
+                std::cerr << "Failed to create context" << std::endl;
+                llama_free_model(m_model);
+                m_model = nullptr;
+                return false;
+            }
+            
+            // Initialize model info
+            m_model_info.name = ExtractModelName(model_path);
+            m_model_info.path = model_path;
+            m_model_info.type = "gguf";
+            m_model_info.size_mb = GetFileSize(model_path) / (1024 * 1024);
+            m_model_info.is_loaded = true;
+            m_model_info.supports_classification = true;
+            m_model_info.avg_tokens_per_second = 25.0f;  // Conservative estimate
+            m_model_info.recommended_context = m_config.context_length;
+            
+            m_model_loaded = true;
+            std::cout << "Model loaded successfully: " << m_model_info.name 
+                      << " (" << m_model_info.size_mb << "MB)" << std::endl;
+            return true;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Exception loading model: " << e.what() << std::endl;
+            if (m_context) {
+                llama_free(m_context);
+                m_context = nullptr;
+            }
+            if (m_model) {
+                llama_free_model(m_model);
+                m_model = nullptr;
+            }
+            return false;
+        }
     }
 
     void UnloadModel() override {
@@ -154,15 +201,17 @@ public:
             return;
         }
 
-        // In real implementation:
-        // if (m_context) {
-        //     llama_free(m_context);
-        //     m_context = nullptr;
-        // }
-        // if (m_model) {
-        //     llama_free_model(m_model);
-        //     m_model = nullptr;
-        // }
+        // Free context
+        if (m_context) {
+            llama_free(m_context);
+            m_context = nullptr;
+        }
+        
+        // Free model
+        if (m_model) {
+            llama_free_model(m_model);
+            m_model = nullptr;
+        }
 
         m_model_info = AIModelInfo();
         m_model_loaded = false;
@@ -192,8 +241,13 @@ public:
         analysis.application = app_name;
         analysis.extracted_text = ocr_result.GetOrderedText();
 
-        // Mock AI analysis based on simple heuristics
-        analysis = MockAnalyzeContent(analysis.extracted_text, window_title, app_name);
+        // Real AI analysis using llama.cpp
+        if (m_model && m_context) {
+            analysis = RealAnalyzeContent(analysis.extracted_text, window_title, app_name);
+        } else {
+            // Fallback to heuristics if model not loaded
+            analysis = MockAnalyzeContent(analysis.extracted_text, window_title, app_name);
+        }
 
         auto end_time = std::chrono::high_resolution_clock::now();
         analysis.processing_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -250,7 +304,10 @@ public:
     }
 
     std::string GetEngineInfo() const override {
-        return "Mock LLaMA.cpp Engine v1.0 (Qwen2.5-1.5B compatible)";
+        if (m_model_loaded) {
+            return "LLaMA.cpp Engine v1.0 (" + m_model_info.name + ")";
+        }
+        return "LLaMA.cpp Engine v1.0 (No model loaded)";
     }
 
 private:
@@ -359,6 +416,12 @@ private:
     }
 
 private:
+    // Real llama.cpp objects
+    llama_model* m_model;
+    llama_context* m_context;
+    llama_model_params m_model_params;
+    llama_context_params m_context_params;
+    
     bool m_initialized;
     bool m_model_loaded;
     AIPromptConfig m_config;
@@ -367,12 +430,261 @@ private:
     // Statistics
     size_t m_total_processed;
     double m_total_processing_time;
-
-    // In real implementation, these would be llama.cpp objects:
-    // llama_model* m_model = nullptr;
-    // llama_context* m_context = nullptr;
-    // llama_model_params m_model_params;
-    // llama_context_params m_context_params;
+    
+    // Thread safety
+    std::mutex m_inference_mutex;
+    
+    // Helper methods
+    std::string ExtractModelName(const std::string& path) {
+        size_t last_slash = path.find_last_of("/\\");
+        std::string filename = (last_slash == std::string::npos) ? path : path.substr(last_slash + 1);
+        size_t last_dot = filename.find_last_of('.');
+        return (last_dot == std::string::npos) ? filename : filename.substr(0, last_dot);
+    }
+    
+    size_t GetFileSize(const std::string& path) {
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            return 0;
+        }
+        auto size = file.tellg();
+        return static_cast<size_t>(size);
+    }
+    
+    std::vector<llama_token> Tokenize(const std::string& text, bool add_bos = true) {
+        if (!m_model) {
+            return {};
+        }
+        
+        std::vector<llama_token> tokens;
+        const int n_tokens_max = text.length() + (add_bos ? 1 : 0) + 1;
+        tokens.resize(n_tokens_max);
+        
+        const int n_tokens = llama_tokenize(m_model, text.c_str(), text.length(), 
+                                          tokens.data(), n_tokens_max, add_bos, false);
+        
+        if (n_tokens < 0) {
+            std::cerr << "Failed to tokenize text" << std::endl;
+            return {};
+        }
+        
+        tokens.resize(n_tokens);
+        return tokens;
+    }
+    
+    std::string DetokenizeTokens(const std::vector<llama_token>& tokens) {
+        if (!m_model || tokens.empty()) {
+            return "";
+        }
+        
+        std::string result;
+        for (const auto& token : tokens) {
+            // Use the helper function from common.h
+            std::string piece = llama_token_to_piece(m_context, token, false);
+            result.append(piece);
+        }
+        return result;
+    }
+    
+    std::string GenerateResponse(const std::string& prompt, int max_tokens = 256) {
+        if (!m_model || !m_context) {
+            return "";
+        }
+        
+        std::lock_guard<std::mutex> lock(m_inference_mutex);
+        
+        try {
+            // Tokenize the prompt
+            auto prompt_tokens = Tokenize(prompt, true);
+            if (prompt_tokens.empty()) {
+                return "";
+            }
+            
+            // Clear the KV cache
+            llama_kv_cache_clear(m_context);
+            
+            // Evaluate the prompt
+            for (size_t i = 0; i < prompt_tokens.size(); ++i) {
+                if (llama_decode(m_context, llama_batch_get_one(&prompt_tokens[i], 1, i, 0)) != 0) {
+                    std::cerr << "Failed to evaluate prompt token " << i << std::endl;
+                    return "";
+                }
+            }
+            
+            // Generate response tokens
+            std::vector<llama_token> response_tokens;
+            response_tokens.reserve(max_tokens);
+            
+            for (int i = 0; i < max_tokens; ++i) {
+                // Sample next token
+                llama_token next_token = SampleNextToken();
+                
+                // Check for end-of-sequence
+                if (next_token == llama_token_eos(m_model)) {
+                    break;
+                }
+                
+                response_tokens.push_back(next_token);
+                
+                // Evaluate the new token
+                const int n_ctx = llama_n_ctx(m_context);
+                const int n_past = prompt_tokens.size() + i;
+                
+                if (n_past >= n_ctx) {
+                    std::cerr << "Context length exceeded" << std::endl;
+                    break;
+                }
+                
+                if (llama_decode(m_context, llama_batch_get_one(&next_token, 1, n_past, 0)) != 0) {
+                    std::cerr << "Failed to evaluate response token " << i << std::endl;
+                    break;
+                }
+                
+                // Check for natural stopping points
+                std::string partial_response = DetokenizeTokens(response_tokens);
+                if (partial_response.find("\\n\\n") != std::string::npos || 
+                    partial_response.find("CONFIDENCE:") != std::string::npos) {
+                    break;
+                }
+            }
+            
+            return DetokenizeTokens(response_tokens);
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Exception during generation: " << e.what() << std::endl;
+            return "";
+        }
+    }
+    
+    llama_token SampleNextToken() {
+        if (!m_context) {
+            return 0;
+        }
+        
+        // Get logits
+        const float* logits = llama_get_logits(m_context);
+        if (!logits) {
+            return 0;
+        }
+        
+        const int n_vocab = llama_n_vocab(m_model);
+        
+        // Create candidates array
+        std::vector<llama_token_data> candidates;
+        candidates.reserve(n_vocab);
+        
+        for (int i = 0; i < n_vocab; ++i) {
+            candidates.emplace_back(llama_token_data{i, logits[i], 0.0f});
+        }
+        
+        llama_token_data_array candidates_p = {
+            candidates.data(),
+            candidates.size(),
+            false
+        };
+        
+        // Apply temperature and top-p sampling
+        const float temperature = m_config.temperature;
+        const float top_p = m_config.top_p;
+        
+        llama_sample_temp(m_context, &candidates_p, temperature);
+        llama_sample_top_p(m_context, &candidates_p, top_p, 1);
+        
+        // Sample the token
+        return llama_sample_token(m_context, &candidates_p);
+    }
+    
+    ContentAnalysis RealAnalyzeContent(const std::string& text,
+                                      const std::string& window_title,
+                                      const std::string& app_name) {
+        ContentAnalysis analysis;
+        
+        // Build classification prompt
+        std::string prompt = ai_utils::BuildClassificationPrompt(text, window_title, app_name);
+        
+        // Generate AI response
+        std::string ai_response = GenerateResponse(prompt, m_config.max_tokens);
+        
+        if (ai_response.empty()) {
+            // Fallback to heuristic analysis
+            return MockAnalyzeContent(text, window_title, app_name);
+        }
+        
+        // Parse the AI response
+        analysis = ParseAIResponse(ai_response, text, window_title, app_name);
+        
+        // Validate and set defaults if parsing failed
+        if (analysis.content_type == ContentType::UNKNOWN) {
+            analysis = MockAnalyzeContent(text, window_title, app_name);
+        }
+        
+        return analysis;
+    }
+    
+    ContentAnalysis ParseAIResponse(const std::string& response,
+                                   const std::string& text,
+                                   const std::string& window_title,
+                                   const std::string& app_name) {
+        ContentAnalysis analysis;
+        
+        try {
+            // Parse structured response
+            std::regex type_regex(R"(TYPE:\s*(\w+))");
+            std::regex priority_regex(R"(PRIORITY:\s*(\d+))");
+            std::regex category_regex(R"(CATEGORY:\s*(\w+))");
+            std::regex productive_regex(R"(PRODUCTIVE:\s*(true|false))");
+            std::regex confidence_regex(R"(CONFIDENCE:\s*([0-9.]+))");
+            
+            std::smatch match;
+            
+            // Extract content type
+            if (std::regex_search(response, match, type_regex)) {
+                analysis.content_type = ai_utils::StringToContentType(match[1].str());
+            }
+            
+            // Extract priority
+            if (std::regex_search(response, match, priority_regex)) {
+                int priority_val = std::stoi(match[1].str());
+                analysis.priority = static_cast<ActivityPriority>(std::clamp(priority_val, 1, 5));
+            }
+            
+            // Extract work category
+            if (std::regex_search(response, match, category_regex)) {
+                analysis.work_category = ai_utils::StringToWorkCategory(match[1].str());
+            }
+            
+            // Extract productivity
+            if (std::regex_search(response, match, productive_regex)) {
+                analysis.is_productive = (match[1].str() == "true");
+            }
+            
+            // Extract confidence
+            if (std::regex_search(response, match, confidence_regex)) {
+                analysis.classification_confidence = std::stof(match[1].str());
+            }
+            
+            // Set derived properties
+            analysis.is_focused_work = ai_utils::IsFocusedWorkCategory(analysis.work_category);
+            analysis.requires_attention = (analysis.priority >= ActivityPriority::HIGH);
+            
+            // Extract keywords
+            analysis.keywords = ai_utils::ExtractEntities(text);
+            
+            // Set confidence scores with some variation
+            if (analysis.classification_confidence == 0.0f) {
+                analysis.classification_confidence = 0.85f;
+            }
+            analysis.priority_confidence = std::max(0.7f, analysis.classification_confidence - 0.1f);
+            analysis.category_confidence = std::max(0.75f, analysis.classification_confidence - 0.05f);
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing AI response: " << e.what() << std::endl;
+            // Return empty analysis to trigger fallback
+            return ContentAnalysis();
+        }
+        
+        return analysis;
+    }
 };
 
 // AI Engine Factory implementation

@@ -269,7 +269,7 @@ public:
         }
 
         // Simple keyword extraction using regex
-        std::regex word_regex(R"(\b[a-zA-Z\u4e00-\u9fff]{2,}\b)"); // Support Chinese characters
+        std::regex word_regex(R"(\b[a-zA-Z]{2,}\b)"); // English words only for now
         std::sregex_iterator iter(text.begin(), text.end(), word_regex);
         std::sregex_iterator end;
 

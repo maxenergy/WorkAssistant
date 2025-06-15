@@ -1,6 +1,7 @@
 #include "minicpm_v_engine.h"
 #include "common_types.h"
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include <thread>
 #include <algorithm>

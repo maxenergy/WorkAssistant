@@ -15,10 +15,16 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
+# Add module path
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 # Find packages
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(PaddleInference)
+find_package(screen_capture_lite)
+# find_package(Drogon) # Temporarily disabled due to yaml-cpp dependency
 
 # Platform-specific settings
 if(WIN32)
@@ -49,6 +55,16 @@ add_executable(work_study_assistant
     src/main.cpp
 )
 
+# Benchmark executable
+add_executable(test_benchmark
+    test_benchmark.cpp
+)
+
+# Real LLaMA test executable
+add_executable(test_real_llama
+    test_real_llama.cpp
+)
+
 target_link_libraries(work_study_assistant
     core_lib
     platform_lib
@@ -64,6 +80,37 @@ target_link_libraries(work_study_assistant
     opencv_inference
     llama_inference
 )
+
+# Link llama.cpp libraries if available
+if(TARGET llama)
+    target_link_libraries(work_study_assistant llama)
+    if(TARGET common)
+        target_link_libraries(work_study_assistant common)
+    endif()
+endif()
+
+target_link_libraries(test_benchmark
+    core_lib
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+
+target_link_libraries(test_real_llama
+    core_lib
+    ai_lib
+    storage_lib
+    ${CMAKE_THREAD_LIBS_INIT}
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    SQLite::SQLite3
+)
+
+# Link llama.cpp libraries for real test
+if(TARGET llama)
+    target_link_libraries(test_real_llama llama)
+    if(TARGET common)
+        target_link_libraries(test_real_llama common)
+    endif()
+endif()
 
 # Install targets
 install(TARGETS work_study_assistant

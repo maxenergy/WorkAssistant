@@ -24,10 +24,19 @@ elseif(UNIX AND NOT APPLE)
     )
 endif()
 
+set(COMMON_SOURCES
+    window_monitor_factory.cpp
+)
+
+# Add screen_capture_lite implementation if available
+if(ScreenCaptureLite_FOUND)
+    list(APPEND COMMON_SOURCES screen_capture_lite_impl.cpp)
+endif()
+
 add_library(platform_lib STATIC
     ${PLATFORM_SOURCES}
     ${PLATFORM_HEADERS}
-    window_monitor_factory.cpp
+    ${COMMON_SOURCES}
 )
 
 target_include_directories(platform_lib PUBLIC
@@ -38,3 +47,9 @@ target_link_libraries(platform_lib
     core_lib
     ${PLATFORM_LIBS}
 )
+
+# Link screen_capture_lite if found
+if(ScreenCaptureLite_FOUND)
+    target_link_libraries(platform_lib ScreenCaptureLite::ScreenCaptureLite)
+    target_compile_definitions(platform_lib PUBLIC SCREEN_CAPTURE_LITE_FOUND)
+endif()

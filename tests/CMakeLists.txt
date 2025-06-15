@@ -35,6 +35,14 @@ target_link_libraries(test_ai
     ${CMAKE_THREAD_LIBS_INIT}
 )
 
+# Link llama if available
+if(TARGET llama)
+    target_link_libraries(test_ai llama)
+    if(TARGET common)
+        target_link_libraries(test_ai common)
+    endif()
+endif()
+
 add_test(NAME AITest COMMAND test_ai)
 
 # Integration test (basic functionality)
@@ -53,6 +61,14 @@ target_link_libraries(test_integration
     web_lib
     ${CMAKE_THREAD_LIBS_INIT}
 )
+
+# Link llama if available for integration test
+if(TARGET llama)
+    target_link_libraries(test_integration llama)
+    if(TARGET common)
+        target_link_libraries(test_integration common)
+    endif()
+endif()
 
 add_test(NAME IntegrationTest COMMAND test_integration)
 
