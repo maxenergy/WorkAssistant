@@ -160,4 +160,5 @@ url.txt
 # Third party builds
 third_party/*/build/
 third_party/install/
+third_party/drogon/
 _deps/
