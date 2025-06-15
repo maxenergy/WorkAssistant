@@ -1,0 +1,71 @@
+@maxenergy ➜ /workspaces/WorkAssistant/build_simple (main) $ ./bin/work_study_assistant --test-mode
+Work Study Assistant v1.0.0 - Starting...
+Created directory: ./data
+Created directory: ./config
+Created directory: ./logs
+Created directory: ./cache
+Created directory: ./models
+Created directory: ./temp
+Created directory: ./data/screenshots
+Created directory: ./data/ocr_results
+Created directory: ./data/ai_analysis
+Created directory: ./data/backup
+Directory structure initialized successfully in: .
+Config file not found, using defaults: ./config/work_assistant.conf
+Configuration manager initialized with config file: ./config/work_assistant.conf
+Initializing Work Study Assistant...
+Created directory: ./data
+Created directory: ./config
+Created directory: ./logs
+Created directory: ./cache
+Created directory: ./models
+Created directory: ./temp
+Created directory: ./data/screenshots
+Created directory: ./data/ocr_results
+Created directory: ./data/ai_analysis
+Created directory: ./data/backup
+Directory structure initialized successfully in: .
+Directory structure initialized successfully
+X11 Window Monitor initialized
+Linux screen capture initialized (1280x800)
+Screen capture manager initialized
+Initializing MiniCPM-V 2.0 (mock implementation)...
+  WARNING: llama.cpp not available, using mock implementation
+  Model path: models/minicpm-v/minicpm-v-2.0-q4_k_m.gguf
+  Context length: 2048
+  GPU layers: 32
+Loading MiniCPM-V model: models/minicpm-v/minicpm-v-2.0-q4_k_m.gguf
+GPU memory allocated: 2800MB
+MiniCPM-V model loaded successfully
+MiniCPM-V 2.0 Engine initialized (Mock implementation)
+Auto-selected MiniCPM-V engine
+Initializing PaddleOCR models (mock implementation)...
+  WARNING: PaddlePaddle library not available, using mock implementation
+  Detection model: models/paddle_ocr/det_model
+  Recognition model: models/paddle_ocr/rec_model
+  Classification model: models/paddle_ocr/cls_model
+PaddleOCR mock models loaded successfully
+PaddleOCR v4 Engine initialized (Mock implementation)
+Dual-mode OCR Manager initialized with MiniCPM-V 2.0 Multimodal Engine - OCR + Understanding
+WARNING: llama.cpp not available, using mock implementation
+AI Content Analyzer initialized with Mock LLaMA.cpp Engine (llama.cpp not available)
+AI Content Analyzer ready for intelligent classification
+Failed to create storage directory: ./data
+Failed to initialize storage engine
+Failed to initialize storage manager
+Storage manager not ready
+Failed to initialize web server
+Application initialized successfully
+Running in test mode - will exit after initialization
+Shutting down application...
+X11 Window Monitor shut down
+Linux screen capture shut down
+Screen capture manager shut down
+Unloading MiniCPM-V model
+MiniCPM-V Engine shut down
+Cleaning up PaddleOCR resources
+PaddleOCR Engine shut down
+Dual-mode OCR Manager shut down
+AI Content Analyzer shut down
+Application shut down
+Configuration saved to: ./config/work_assistant.conf

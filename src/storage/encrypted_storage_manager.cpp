@@ -32,7 +32,7 @@ public:
         m_config = config;
 
         // Create storage engine
-        m_storage = StorageEngineFactory::Create();
+        m_storage = StorageEngineFactory::Create(StorageEngineFactory::EngineType::SQLITE_ENCRYPTED);
         if (!m_storage) {
             std::cerr << "Failed to create storage engine" << std::endl;
             return false;

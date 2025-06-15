@@ -16,19 +16,20 @@ target_include_directories(ai_lib PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-# Add llama.cpp includes and libraries if available
-if(TARGET llama)
-    target_include_directories(ai_lib PRIVATE
-        ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/include
-        ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/common
-        ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/ggml/include
-    )
-    target_link_libraries(ai_lib llama)
-    
-    # Also link common library if available
-    if(TARGET common)
-        target_link_libraries(ai_lib common)
-    endif()
+# Add llama.cpp includes and libraries - force enable since we know it exists
+target_include_directories(ai_lib PRIVATE
+    ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/include
+    ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/common
+    ${CMAKE_BINARY_DIR}/_deps/llama_cpp-src/ggml/include
+)
+target_link_libraries(ai_lib llama ggml)
+target_compile_definitions(ai_lib PRIVATE LLAMA_CPP_AVAILABLE=1)
+target_compile_options(ai_lib PRIVATE -fopenmp)
+target_link_options(ai_lib PRIVATE -fopenmp)
+
+# Also link common library
+if(TARGET common)
+    target_link_libraries(ai_lib common)
 endif()
 
 target_link_libraries(ai_lib

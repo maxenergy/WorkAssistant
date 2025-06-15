@@ -9,14 +9,14 @@
 #include <random>
 #include <sstream>
 
-#if LLAMA_CPP_AVAILABLE
+#if 0  // Temporarily disable MiniCPM-V due to API compatibility issues
     // Real llama.cpp implementation for MiniCPM-V
     // Already included llama.h in header
     #include "common.h"
     #include "sampling.h"
     // Include OpenCV for image processing
-    #ifdef OPENCV_FOUND
-        #include "opencv2/opencv.hpp"
+    #if 0  // Temporarily disable OpenCV
+        #include <opencv2/opencv.hpp>
         #define OPENCV_AVAILABLE 1
     #else
         #define OPENCV_AVAILABLE 0
@@ -266,7 +266,7 @@ public:
 
 private:
     bool InitializeMiniCPMV() {
-#if LLAMA_CPP_AVAILABLE
+#if 0  // Temporarily disable MiniCPM-V due to API compatibility issues
         // Real MiniCPM-V initialization with llama.cpp
         std::cout << "Initializing MiniCPM-V 2.0 (real implementation)..." << std::endl;
         std::cout << "  Model path: " << m_config.model_path << std::endl;

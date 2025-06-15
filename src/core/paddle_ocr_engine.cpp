@@ -8,7 +8,7 @@
 #include <regex>
 #include <random>
 
-#ifdef PADDLE_INFERENCE_FOUND
+#if PADDLE_INFERENCE_FOUND
     // Real PaddlePaddle implementation
     #include <paddle_c_api.h>
     #include <opencv2/opencv.hpp>
@@ -32,7 +32,7 @@ public:
         }
 
         m_options = options;
-        
+
         // Try to initialize PaddlePaddle (Mock for now)
         if (!InitializePaddleOCR()) {
             std::cerr << "Failed to initialize PaddleOCR library" << std::endl;
@@ -51,7 +51,7 @@ public:
 
         // Cleanup PaddleOCR resources
         CleanupPaddleOCR();
-        
+
         m_initialized = false;
         std::cout << "PaddleOCR Engine shut down" << std::endl;
     }
@@ -69,10 +69,10 @@ public:
         // Mock PaddleOCR processing - simulate detection and recognition
         auto detection_result = MockDetection(frame);
         auto recognition_result = MockRecognition(detection_result);
-        
+
         // Convert to OCRDocument format
         document = paddle_utils::ConvertToOCRDocument(detection_result, recognition_result);
-        
+
         auto end_time = std::chrono::high_resolution_clock::now();
         document.processing_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
@@ -100,7 +100,7 @@ public:
 
     void SetOptions(const OCROptions& options) {
         m_options = options;
-        
+
         // Update PaddleOCR configuration based on options
         UpdateConfiguration();
     }
@@ -151,15 +151,15 @@ private:
         std::cout << "  Detection model: " << m_config.det_model_path << std::endl;
         std::cout << "  Recognition model: " << m_config.rec_model_path << std::endl;
         std::cout << "  Classification model: " << m_config.cls_model_path << std::endl;
-        
+
         // TODO: Implement real PaddlePaddle initialization:
         // 1. Load PaddlePaddle models
-        // 2. Initialize inference engine  
+        // 2. Initialize inference engine
         // 3. Set up GPU/CPU configuration
-        
+
         // Simulate model loading time
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        
+
         std::cout << "PaddleOCR models loaded successfully (real)" << std::endl;
         return true;
 #else
@@ -169,10 +169,10 @@ private:
         std::cout << "  Detection model: " << m_config.det_model_path << std::endl;
         std::cout << "  Recognition model: " << m_config.rec_model_path << std::endl;
         std::cout << "  Classification model: " << m_config.cls_model_path << std::endl;
-        
+
         // Simulate model loading time
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        
+
         std::cout << "PaddleOCR mock models loaded successfully" << std::endl;
         return true;
 #endif
@@ -189,7 +189,7 @@ private:
             m_config.use_gpu = true;
             std::cout << "Enabled GPU acceleration for PaddleOCR" << std::endl;
         }
-        
+
         if (m_options.language == "chi_sim" || m_options.language == "chi_tra") {
             // Switch to Chinese character dictionary
             m_config.rec_char_dict_path = "models/paddle_ocr/ppocr_keys_chinese_v1.txt";
@@ -199,10 +199,10 @@ private:
     PaddleDetectionResult MockDetection(const CaptureFrame& frame) {
         // Simulate text detection
         PaddleDetectionResult result;
-        
+
         // Mock some detection boxes based on image size
         int num_boxes = 3 + (rand() % 5); // 3-7 text regions
-        
+
         for (int i = 0; i < num_boxes; ++i) {
             std::vector<int> box = {
                 rand() % (frame.width / 2),                    // x1
@@ -213,16 +213,16 @@ private:
             result.boxes.push_back(box);
             result.scores.push_back(0.85f + (rand() % 15) / 100.0f); // 0.85-0.99
         }
-        
+
         // Update detection statistics
         m_statistics.avg_detection_time_ms = 45.0 + (rand() % 20); // 45-65ms
-        
+
         return result;
     }
 
     PaddleRecognitionResult MockRecognition(const PaddleDetectionResult& det_result) {
         PaddleRecognitionResult result;
-        
+
         // Mock text recognition for each detected box
         std::vector<std::string> sample_texts = {
             "Hello World",
@@ -236,23 +236,23 @@ private:
             "图像处理",
             "Machine Learning"
         };
-        
+
         for (size_t i = 0; i < det_result.boxes.size(); ++i) {
             // Choose random sample text
             std::string text = sample_texts[rand() % sample_texts.size()];
             result.texts.push_back(text);
             result.scores.push_back(0.90f + (rand() % 10) / 100.0f); // 0.90-0.99
         }
-        
+
         // Update recognition statistics
         m_statistics.avg_recognition_time_ms = 25.0 + (rand() % 15); // 25-40ms
-        
+
         return result;
     }
 
     void UpdateStatistics(double total_time_ms) {
         m_statistics.total_processed++;
-        
+
         // Update average total time
         double prev_total = m_statistics.avg_total_time_ms * (m_statistics.total_processed - 1);
         m_statistics.avg_total_time_ms = (prev_total + total_time_ms) / m_statistics.total_processed;
@@ -288,13 +288,13 @@ bool NormalizeImage(CaptureFrame& frame) {
 OCRDocument ConvertToOCRDocument(const PaddleDetectionResult& det_result,
                                 const PaddleRecognitionResult& rec_result) {
     OCRDocument document;
-    
+
     // Convert detection and recognition results to TextBlocks
     for (size_t i = 0; i < det_result.boxes.size() && i < rec_result.texts.size(); ++i) {
         TextBlock block;
         block.text = rec_result.texts[i];
         block.confidence = rec_result.scores[i];
-        
+
         // Set bounding box (simplified)
         if (det_result.boxes[i].size() >= 4) {
             block.x = det_result.boxes[i][0];
@@ -302,10 +302,10 @@ OCRDocument ConvertToOCRDocument(const PaddleDetectionResult& det_result,
             block.width = det_result.boxes[i][2] - det_result.boxes[i][0];
             block.height = det_result.boxes[i][3] - det_result.boxes[i][1];
         }
-        
+
         document.text_blocks.push_back(block);
     }
-    
+
     // Calculate overall confidence
     if (!document.text_blocks.empty()) {
         float total_confidence = 0.0f;
@@ -314,10 +314,10 @@ OCRDocument ConvertToOCRDocument(const PaddleDetectionResult& det_result,
         }
         document.overall_confidence = total_confidence / document.text_blocks.size();
     }
-    
+
     // Generate full text
     document.full_text = document.GetOrderedText();
-    
+
     return document;
 }
 
@@ -329,14 +329,14 @@ std::vector<TextBlock> MergeTextBlocks(const std::vector<TextBlock>& blocks) {
 std::string OrderTextByPosition(const std::vector<TextBlock>& blocks) {
     // Sort blocks by reading order (top-to-bottom, left-to-right)
     std::vector<TextBlock> sorted_blocks = blocks;
-    std::sort(sorted_blocks.begin(), sorted_blocks.end(), 
+    std::sort(sorted_blocks.begin(), sorted_blocks.end(),
               [](const TextBlock& a, const TextBlock& b) {
                   if (std::abs(a.y - b.y) > 20) {
                       return a.y < b.y;
                   }
                   return a.x < b.x;
               });
-    
+
     std::string result;
     for (const auto& block : sorted_blocks) {
         if (!result.empty()) {
@@ -344,7 +344,7 @@ std::string OrderTextByPosition(const std::vector<TextBlock>& blocks) {
         }
         result += block.text;
     }
-    
+
     return result;
 }
 
@@ -384,7 +384,7 @@ OCRDocument PaddleOCREngine::ProcessImage(const CaptureFrame& frame) {
     return m_impl->ProcessImage(frame);
 }
 
-OCRDocument PaddleOCREngine::ProcessImageRegion(const CaptureFrame& frame, 
+OCRDocument PaddleOCREngine::ProcessImageRegion(const CaptureFrame& frame,
                                                int x, int y, int width, int height) {
     return m_impl->ProcessImageRegion(frame, x, y, width, height);
 }

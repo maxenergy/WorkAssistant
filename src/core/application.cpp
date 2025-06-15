@@ -41,12 +41,11 @@ bool Application::Initialize() {
     m_windowMonitor = WindowMonitorFactory::Create();
     if (!m_windowMonitor) {
         std::cerr << "Failed to create window monitor" << std::endl;
-        return false;
-    }
-
-    if (!m_windowMonitor->Initialize()) {
+        // Don't fail completely - continue without window monitoring
+    } else if (!m_windowMonitor->Initialize()) {
         std::cerr << "Failed to initialize window monitor" << std::endl;
-        return false;
+        // Don't fail completely - continue without window monitoring
+        m_windowMonitor.reset();
     }
 
     // Initialize screen capture
@@ -67,7 +66,8 @@ bool Application::Initialize() {
 
     // Initialize AI content analyzer
     m_aiAnalyzer = std::make_unique<AIContentAnalyzer>();
-    if (!m_aiAnalyzer->Initialize()) {
+    std::string model_path = DirectoryManager::JoinPath(DirectoryManager::GetModelsDirectory(), "qwen2.5-0.5b-instruct-q4_k_m.gguf");
+    if (!m_aiAnalyzer->Initialize(model_path, AIEngineFactory::EngineType::LLAMA_CPP)) {
         std::cerr << "Failed to initialize AI analyzer" << std::endl;
         // Don't fail completely if AI fails
         m_aiAnalyzer.reset();

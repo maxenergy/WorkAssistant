@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-#if LLAMA_CPP_AVAILABLE
+#if 0  // Temporarily disable MiniCPM-V due to API compatibility issues
 
 namespace work_assistant {
 

@@ -40,10 +40,16 @@ public:
 
         // Load model if path provided
         if (!model_path.empty()) {
+            std::cout << "Attempting to load model: " << model_path << std::endl;
             if (!m_engine->LoadModel(model_path)) {
-                std::cerr << "Failed to load model: " << model_path << std::endl;
+                std::cerr << "❌ CRITICAL: Failed to load model: " << model_path << std::endl;
+                std::cerr << "❌ AI analysis will not work properly without a loaded model!" << std::endl;
                 // Continue without model for now
+            } else {
+                std::cout << "✅ Model loaded successfully!" << std::endl;
             }
+        } else {
+            std::cout << "⚠️  No model path provided - AI will use fallback classification" << std::endl;
         }
 
         m_initialized = true;

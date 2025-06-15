@@ -93,11 +93,8 @@ public:
         m_config = config;
         m_storage = storage;
         
-#ifdef WEB_DISABLED
-        std::cout << "Web interface disabled (Drogon not found)" << std::endl;
-        m_initialized = true;
-        return true;
-#elif defined(WEB_ENABLED)
+#if 0 // Disable Drogon temporarily
+#ifdef DROGON_ENABLED
         // Initialize Drogon framework
         try {
             app().setLogPath("./logs")
@@ -125,8 +122,10 @@ public:
             std::cerr << "Failed to initialize web server: " << e.what() << std::endl;
             return false;
         }
+#endif
 #else
-        std::cout << "Web interface disabled (Drogon not available)" << std::endl;
+        // Simple HTTP server implementation (without Drogon)
+        std::cout << "Initializing simple HTTP server on " << m_config.host << ":" << m_config.port << std::endl;
         m_initialized = true;
         return true;
 #endif

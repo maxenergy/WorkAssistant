@@ -6,12 +6,12 @@ if(WIN32)
     )
     set(PLATFORM_HEADERS
         windows/win32_window_monitor.h
-        windows/win32_screen_capture.h  
+        windows/win32_screen_capture.h
         windows/win32_daemon.h
     )
 elseif(UNIX AND NOT APPLE)
     set(PLATFORM_SOURCES
-        linux/x11_window_monitor_minimal.cpp
+        linux/x11_window_monitor.cpp
         linux/linux_screen_capture.cpp
         linux/linux_daemon.cpp
         linux/atspi_client.cpp

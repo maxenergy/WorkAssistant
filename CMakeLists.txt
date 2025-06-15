@@ -18,13 +18,16 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 # Add module path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# Add Drogon build path for package finding
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/third_party/drogon/build")
+
 # Find packages
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(PaddleInference)
 find_package(screen_capture_lite)
-# find_package(Drogon) # Temporarily disabled due to yaml-cpp dependency
+# find_package(Drogon) # Re-enabled later after yaml-cpp fixes
 
 # Platform-specific settings
 if(WIN32)
